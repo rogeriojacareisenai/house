@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArquiStudio Pro - Planta Baixa 2D & 3D Interativo</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Three.js CDN (r128) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; user-select: none; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .canvas-container { cursor: crosshair; }
+        .canvas-container.panning { cursor: grab; }
+        .canvas-container.panning:active { cursor: grabbing; }
+        /* Divisor redimensionável */
+        .resizer-bar {
+            width: 8px;
+            background: #cbd5e1;
+            cursor: col-resize;
+            transition: background 0.2s;
+            z-index: 40;
+            flex-shrink: 0;
+            display: none;
+            position: relative;
+        }
+        .resizer-bar:hover, .resizer-bar.active {
+            background: #6366f1;
+        }
+    </style>
+</head>
+<body class="h-full bg-slate-50 text-slate-800 flex flex-col overflow-hidden">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-sm z-30">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-white p-2 rounded-xl flex items-center justify-center shadow-md shadow-indigo-500/20">
+                <i data-lucide="home" class="w-5 h-5"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-sm md:text-base tracking-tight flex items-center gap-2 text-slate-900">
+                    ArquiStudio Pro <span class="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-200 font-medium">Vãos & Split Pro</span>
+                </h1>
+                <p class="text-xs text-slate-500" id="project-title-display">Projeto sem título</p>
+            </div>
+        </div>
+
+        <!-- Mode Switcher -->
+        <div class="flex bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner">
+            <button onclick="switchViewMode('2d')" id="tab-2d" class="px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all flex items-center gap-2 bg-indigo-600 text-white shadow">
+                <i data-lucide="compass" class="w-4 h-4"></i> Planta 2D
+            </button>
+            <button onclick="switchViewMode('split')" id="tab-split" class="px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900">
+                <i data-lucide="columns-2" class="w-4 h-4"></i> Dividida
+            </button>
+            <button onclick="switchViewMode('3d')" id="tab-3d" class="px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900">
+                <i data-lucide="box" class="w-4 h-4"></i> Visualizador 3D
+            </button>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center space-x-2">
+            <button onclick="openModal('project-modal')" class="bg-white hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-xl text-xs md:text-sm font-medium transition flex items-center gap-2 border border-slate-200 shadow-sm" title="Salvar / Carregar">
+                <i data-lucide="save" class="w-4 h-4 text-emerald-600"></i> <span class="hidden md:inline">Salvar / Arquivo</span>
+            </button>
+            <button onclick="exportSnapshot()" class="bg-white hover:bg-slate-50 text-slate-700 px-3 py-2 rounded-xl text-xs md:text-sm font-medium transition flex items-center gap-2 border border-slate-200 shadow-sm" title="Exportar Imagem">
+                <i data-lucide="image" class="w-4 h-4 text-cyan-600"></i> <span class="hidden md:inline">Exportar</span>
+            </button>
+            <button onclick="clearProject()" class="bg-rose-50 hover:bg-rose-100 text-rose-600 p-2.5 rounded-xl transition border border-rose-200" title="Limpar Tudo">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </header>
+
+    <div class="flex-1 flex relative overflow-hidden">
+
+        <!-- 2D Sidebar Toolbox -->
+        <aside id="toolbox-2d" class="w-72 bg-white border-r border-slate-200 flex flex-col z-20 transition-all shrink-0 shadow-sm">
+            <div class="p-3.5 border-b border-slate-200 flex items-center justify-between">
+                <h2 class="text-xs font-bold tracking-wider text-slate-500 uppercase">Ferramentas</h2>
+                <span id="coord-display" class="text-[10px] text-slate-400 font-mono">X: 0, Y: 0</span>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                <!-- Drawing Tools -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="setTool('select')" id="tool-select" class="tool-btn p-3 rounded-xl border border-indigo-500 bg-indigo-50 text-indigo-700 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium">
+                        <i data-lucide="mouse-pointer" class="w-5 h-5"></i> Selecionar
+                    </button>
+                    <button onclick="setTool('wall')" id="tool-wall" class="tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium">
+                        <i data-lucide="hammer" class="w-5 h-5 text-amber-600"></i> Parede
+                    </button>
+                    <button onclick="setTool('door')" id="tool-door" class="tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium">
+                        <i data-lucide="door-open" class="w-5 h-5 text-cyan-600"></i> Porta
+                    </button>
+                    <button onclick="setTool('window')" id="tool-window" class="tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium">
+                        <i data-lucide="panel-top" class="w-5 h-5 text-sky-600"></i> Janela
+                    </button>
+                    <button onclick="setTool('measure')" id="tool-measure" class="tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium col-span-2">
+                        <i data-lucide="ruler" class="w-5 h-5 text-purple-600"></i> Medir Distância (Cota)
+                    </button>
+                </div>
+
+                <!-- Furniture Catalog -->
+                <div>
+                    <h3 class="text-xs font-bold tracking-wider text-slate-500 uppercase mb-3">Adicionar Móveis</h3>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button onclick="addFurniture('bed')" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center gap-2 transition">
+                            <i data-lucide="bed" class="w-4 h-4 text-indigo-600"></i> Cama
+                        </button>
+                        <button onclick="addFurniture('sofa')" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center gap-2 transition">
+                            <i data-lucide="armchair" class="w-4 h-4 text-amber-600"></i> Sofá
+                        </button>
+                        <button onclick="addFurniture('table')" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center gap-2 transition">
+                            <i data-lucide="utensils" class="w-4 h-4 text-emerald-600"></i> Mesa
+                        </button>
+                        <button onclick="addFurniture('kitchen')" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center gap-2 transition">
+                            <i data-lucide="chef-hat" class="w-4 h-4 text-cyan-600"></i> Cozinha
+                        </button>
+                        <button onclick="addFurniture('tv')" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center gap-2 transition">
+                            <i data-lucide="tv" class="w-4 h-4 text-purple-600"></i> Rack TV
+                        </button>
+                        <button onclick="addFurniture('toilet')" class="p-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium flex items-center gap-2 transition">
+                            <i data-lucide="bath" class="w-4 h-4 text-sky-600"></i> Sanitário
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Properties Panel -->
+                <div id="properties-panel" class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 hidden shadow-sm">
+                    <h3 class="text-xs font-bold tracking-wider text-indigo-600 uppercase mb-3 flex items-center justify-between">
+                        <span>Propriedades</span>
+                        <button onclick="deleteSelectedItem()" class="text-rose-600 hover:text-rose-700 text-xs flex items-center gap-1"><i data-lucide="trash" class="w-3.5 h-3.5"></i> Excluir [Del]</button>
+                    </h3>
+                    <div id="properties-content" class="space-y-3 text-xs text-slate-700"></div>
+                </div>
+
+                <!-- Settings -->
+                <div class="pt-2 border-t border-slate-200 space-y-3">
+                    <div class="flex items-center justify-between text-xs text-slate-600">
+                        <span>Unidade de Medida</span>
+                        <select id="unit-select" class="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 text-xs font-semibold text-indigo-600">
+                            <option value="m" selected>Metros (m)</option>
+                            <option value="cm">Centímetros (cm)</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-slate-600">
+                        <span>Grade Magnética (Snap)</span>
+                        <input type="checkbox" id="snap-grid" checked class="rounded bg-white border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-slate-600">
+                        <span>Espessura Parede Padrão</span>
+                        <select id="wall-thickness-select" class="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 text-xs">
+                            <option value="15">15 cm</option>
+                            <option value="20" selected>20 cm</option>
+                            <option value="30">30 cm</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-slate-600">
+                        <span>Altura Parede Padrão</span>
+                        <select id="wall-height-select" class="bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 text-xs">
+                            <option value="260">2.60 m</option>
+                            <option value="280" selected>2.80 m</option>
+                            <option value="300">3.00 m</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-3 bg-slate-100 border-t border-slate-200 text-[11px] text-slate-600 flex items-center gap-2">
+                <i data-lucide="info" class="w-4 h-4 text-indigo-600 shrink-0"></i>
+                <span id="instruction-tip">Clique em qualquer item (porta, janela, móvel ou parede) e aperte [Delete] para removê-lo.</span>
+            </div>
+        </aside>
+
+        <!-- Main Viewports Container (Flex Row for Split Mode) -->
+        <main class="flex-1 relative bg-white overflow-hidden flex flex-row" id="main-viewport-container">
+            
+            <!-- 2D Editor Viewport -->
+            <div id="wrapper-2d" class="relative h-full canvas-container overflow-hidden" style="width: 100%; flex: 0 0 100%;">
+                <canvas id="canvas-2d" class="block w-full h-full"></canvas>
+                
+                <!-- 2D HUD Controls -->
+                <div class="absolute bottom-6 left-6 bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-1.5 flex items-center space-x-1 z-10 text-slate-700">
+                    <button onclick="zoomCanvas(1.2)" class="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center transition" title="Zoom In"><i data-lucide="plus" class="w-4 h-4"></i></button>
+                    <button onclick="resetZoom()" class="px-3 h-8 rounded-xl hover:bg-slate-100 text-xs font-semibold transition" id="zoom-level-display">100%</button>
+                    <button onclick="zoomCanvas(0.8)" class="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center transition" title="Zoom Out"><i data-lucide="minus" class="w-4 h-4"></i></button>
+                    <div class="w-px h-5 bg-slate-200 mx-1"></div>
+                    <button onclick="togglePanMode()" id="btn-pan" class="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center transition" title="Mover Tela (Pan)"><i data-lucide="hand" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+
+            <!-- Resizer Bar para o modo Split -->
+            <div id="resizer-split" class="resizer-bar" title="Arraste para redimensionar as telas"></div>
+
+            <!-- 3D Viewport (Dark Theme) -->
+            <div id="wrapper-3d" class="relative h-full hidden bg-slate-950" style="width: 0%; flex: 0 0 0%;">
+                <div id="canvas-3d-host" class="w-full h-full"></div>
+                
+                <!-- 3D Controls HUD -->
+                <div class="absolute top-6 right-6 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl p-4 flex flex-col gap-3.5 z-10 text-xs w-64 text-slate-200">
+                    <h3 class="font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
+                        <i data-lucide="sun" class="w-4 h-4 text-amber-400"></i> Iluminação & Luz 3D
+                    </h3>
+                    
+                    <button onclick="center3DCamera(true)" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded-xl transition flex items-center justify-center gap-2 shadow-md">
+                        <i data-lucide="crosshair" class="w-4 h-4"></i> Centralizar Planta 3D
+                    </button>
+                    
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between text-slate-400">
+                            <span>Tipo de Iluminação</span>
+                        </div>
+                        <select id="lighting-mode" onchange="updateLightingMode()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-indigo-500">
+                            <option value="constant">Luz Uniforme Constante (Sem escurecer)</option>
+                            <option value="studio">Estúdio Neutro / Uniforme</option>
+                            <option value="suntime">Solar com Relógio (Dinâmica)</option>
+                        </select>
+                    </div>
+
+                    <div id="time-container" class="space-y-1.5 hidden">
+                        <div class="flex justify-between text-slate-400">
+                            <span>Hora do Sol</span>
+                            <span id="time-val" class="text-indigo-400 font-semibold font-mono">12:00</span>
+                        </div>
+                        <input type="range" id="sun-time" min="6" max="19" step="0.5" value="12" class="w-full accent-indigo-500 cursor-pointer" oninput="updateLighting()">
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between text-slate-400">
+                            <span>Cobertura / Telhado</span>
+                        </div>
+                        <select id="roof-mode" onchange="update3DScene()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-indigo-500">
+                            <option value="transparent">Transparente (Corte)</option>
+                            <option value="none">Sem Teto (Aberto)</option>
+                            <option value="flat">Laje Plana Coberta</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- 3D Navigation Guide -->
+                <div class="absolute bottom-6 left-6 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl p-3 text-xs text-slate-300 z-10 hidden md:flex items-center gap-4 shadow-xl">
+                    <span><i data-lucide="mouse-pointer" class="w-3.5 h-3.5 text-indigo-400 inline mr-1"></i> Esquerdo + Arrastar: Girar</span>
+                    <span><i data-lucide="move" class="w-3.5 h-3.5 text-indigo-400 inline mr-1"></i> Direito + Arrastar: Mover</span>
+                    <span><i data-lucide="zoom-in" class="w-3.5 h-3.5 text-indigo-400 inline mr-1"></i> Scroll: Zoom</span>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- Project Modal -->
+    <div id="project-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white border border-slate-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 class="font-bold text-sm md:text-base text-slate-800 flex items-center gap-2">
+                    <i data-lucide="save" class="w-5 h-5 text-indigo-600"></i> Gerenciar Projeto
+                </h3>
+                <button onclick="closeModal('project-modal')" class="text-slate-400 hover:text-slate-600 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-600 mb-1.5">Nome do Projeto</label>
+                    <input type="text" id="project-name-input" value="Minha Casa" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-500 transition">
+                </div>
+
+                <div class="space-y-2.5 pt-2">
+                    <button onclick="saveProject()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-3 rounded-2xl transition flex items-center justify-center gap-2 text-sm shadow-md shadow-indigo-600/20">
+                        <i data-lucide="cloud-upload" class="w-4 h-4"></i> Salvar no Navegador
+                    </button>
+                    <button onclick="exportJSON()" class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-medium py-3 rounded-2xl transition flex items-center justify-center gap-2 text-sm">
+                        <i data-lucide="download" class="w-4 h-4 text-emerald-600"></i> Exportar Arquivo JSON
+                    </button>
+                    <label class="w-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 font-medium py-3 rounded-2xl transition flex items-center justify-center gap-2 text-sm cursor-pointer">
+                        <i data-lucide="upload" class="w-4 h-4 text-cyan-600"></i> Importar Arquivo JSON
+                        <input type="file" id="import-file" accept=".json" onchange="importJSON(event)" class="hidden">
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-6 right-6 bg-white border border-slate-200 text-slate-800 px-4.5 py-3.5 rounded-2xl shadow-xl z-50 transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-3">
+        <i id="toast-icon" data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600 shrink-0"></i>
+        <span id="toast-msg" class="text-xs md:text-sm font-medium">Ação realizada com sucesso!</span>
+    </div>
+
+    <script>
+        // --- Application State ---
+        let viewMode = '2d';
+        let currentTool = 'select';
+        let isPanMode = false;
+        let snapGrid = true;
+        let wallThicknessDefault = 20;
+        let wallHeightDefault = 280;
+        let currentUnit = 'm'; // 'm' ou 'cm'
+
+        let project = {
+            name: "Projeto sem título",
+            walls: [],    
+            doors: [],    
+            windows: [],  
+            furniture: [] 
+        };
+
+        function formatUnit(valCm) {
+            if (currentUnit === 'm') {
+                return (valCm / 100).toFixed(2) + ' m';
+            }
+            return Math.round(valCm) + ' cm';
+        }
+
+        function parseUnitInput(valInput) {
+            let num = parseFloat(valInput) || 0;
+            if (currentUnit === 'm') {
+                return num * 100;
+            }
+            return num;
+        }
+
+        const canvas2D = document.getElementById('canvas-2d');
+        const ctx2D = canvas2D.getContext('2d');
+        let scale2D = 1.0;
+        let pan2D = { x: 0, y: 0 };
+        let isDraggingCanvas = false;
+        let dragStart2D = { x: 0, y: 0 };
+        let drawingWallStart = null;
+        let currentMouseWorld = { x: 0, y: 0 };
+        let selectedItem = null; 
+        let measuringStart = null;
+        let measuringEnd = null;
+        let draggingWallHandle = null;
+
+        let scene3D, camera3D, renderer3D, controls3D;
+        let sunLight, ambientLight, fillLight1, fillLight2, directionalLight3D;
+        let houseGroup3D = null;
+        let is3DInitialized = false;
+
+        // --- Lógica Corrigida de Redimensionamento do Split View ---
+        let isResizingSplit = false;
+
+        window.addEventListener('load', () => {
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            init2DCanvas();
+            updatePropertiesPanel();
+            initSplitResizer();
+
+            window.addEventListener('resize', () => {
+                resize2DCanvas();
+                if (is3DInitialized && renderer3D && camera3D) {
+                    const host = document.getElementById('canvas-3d-host');
+                    camera3D.aspect = host.clientWidth / host.clientHeight;
+                    camera3D.updateProjectionMatrix();
+                    renderer3D.setSize(host.clientWidth, host.clientHeight);
+                }
+            });
+
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+                    if (selectedItem) {
+                        deleteSelectedItem();
+                    }
+                }
+            });
+
+            document.getElementById('unit-select').addEventListener('change', (e) => {
+                currentUnit = e.target.value;
+                updatePropertiesPanel();
+                showToast(`Unidade alterada para ${currentUnit === 'm' ? 'Metros (m)' : 'Centímetros (cm)'}`);
+            });
+        });
+
+        function initSplitResizer() {
+            const resizer = document.getElementById('resizer-split');
+            const wrapper2D = document.getElementById('wrapper-2d');
+            const wrapper3D = document.getElementById('wrapper-3d');
+            const container = document.getElementById('main-viewport-container');
+
+            resizer.addEventListener('mousedown', (e) => {
+                if (viewMode !== 'split') return;
+                isResizingSplit = true;
+                resizer.classList.add('active');
+                document.body.style.cursor = 'col-resize';
+                e.preventDefault();
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isResizingSplit || viewMode !== 'split') return;
+                const rect = container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                let percent = (x / rect.width) * 100;
+                if (percent >= 15 && percent <= 85) {
+                    wrapper2D.style.flex = `0 0 ${percent}%`;
+                    wrapper3D.style.flex = `0 0 ${100 - percent}%`;
+                    resize2DCanvas();
+                    if (is3DInitialized && renderer3D && camera3D) {
+                        const host = document.getElementById('canvas-3d-host');
+                        camera3D.aspect = host.clientWidth / host.clientHeight;
+                        camera3D.updateProjectionMatrix();
+                        renderer3D.setSize(host.clientWidth, host.clientHeight);
+                    }
+                }
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isResizingSplit) {
+                    isResizingSplit = false;
+                    resizer.classList.remove('active');
+                    document.body.style.cursor = 'default';
+                }
+            });
+        }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-msg');
+            const toastIcon = document.getElementById('toast-icon');
+            
+            toastMsg.innerText = msg;
+            toastIcon.setAttribute('data-lucide', type === 'success' ? 'check-circle-2' : 'alert-circle');
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+            
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-24', 'opacity-0');
+            }, 3200);
+        }
+
+        function switchViewMode(mode) {
+            viewMode = mode;
+            const tab2D = document.getElementById('tab-2d');
+            const tabSplit = document.getElementById('tab-split');
+            const tab3D = document.getElementById('tab-3d');
+            const wrapper2D = document.getElementById('wrapper-2d');
+            const wrapper3D = document.getElementById('wrapper-3d');
+            const toolbox2D = document.getElementById('toolbox-2d');
+            const resizerSplit = document.getElementById('resizer-split');
+
+            const activeClass = "px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all flex items-center gap-2 bg-indigo-600 text-white shadow";
+            const inactiveClass = "px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all flex items-center gap-2 text-slate-600 hover:text-slate-900";
+
+            tab2D.className = mode === '2d' ? activeClass : inactiveClass;
+            tabSplit.className = mode === 'split' ? activeClass : inactiveClass;
+            tab3D.className = mode === '3d' ? activeClass : inactiveClass;
+
+            if (mode === '2d') {
+                wrapper2D.classList.remove('hidden');
+                wrapper2D.style.flex = '0 0 100%';
+                wrapper3D.classList.add('hidden');
+                wrapper3D.style.flex = '0 0 0%';
+                resizerSplit.style.display = 'none';
+                toolbox2D.style.display = 'flex';
+                resize2DCanvas();
+            } else if (mode === '3d') {
+                wrapper2D.classList.add('hidden');
+                wrapper2D.style.flex = '0 0 0%';
+                wrapper3D.classList.remove('hidden');
+                wrapper3D.style.flex = '0 0 100%';
+                resizerSplit.style.display = 'none';
+                toolbox2D.style.display = 'none';
+                init3DIfNeeded();
+            } else if (mode === 'split') {
+                wrapper2D.classList.remove('hidden');
+                wrapper2D.style.flex = '0 0 50%';
+                wrapper3D.classList.remove('hidden');
+                wrapper3D.style.flex = '0 0 50%';
+                resizerSplit.style.display = 'block';
+                toolbox2D.style.display = 'flex';
+                resize2DCanvas();
+                init3DIfNeeded();
+            }
+        }
+
+        function init2DCanvas() {
+            resize2DCanvas();
+            
+            canvas2D.addEventListener('mousedown', onMouseDown2D);
+            canvas2D.addEventListener('mousemove', onMouseMove2D);
+            canvas2D.addEventListener('mouseup', onMouseUp2D);
+            canvas2D.addEventListener('wheel', onWheel2D, { passive: false });
+
+            document.getElementById('snap-grid').addEventListener('change', (e) => { snapGrid = e.target.checked; });
+            document.getElementById('wall-thickness-select').addEventListener('change', (e) => { wallThicknessDefault = parseInt(e.target.value); });
+            document.getElementById('wall-height-select').addEventListener('change', (e) => { wallHeightDefault = parseInt(e.target.value); });
+
+            requestAnimationFrame(render2DLoop);
+        }
+
+        function resize2DCanvas() {
+            const parent = canvas2D.parentElement;
+            canvas2D.width = parent.clientWidth;
+            canvas2D.height = parent.clientHeight;
+            if (pan2D.x === 0 && pan2D.y === 0) {
+                pan2D.x = parent.clientWidth / 2;
+                pan2D.y = parent.clientHeight / 2;
+            }
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            isPanMode = false;
+            document.querySelectorAll('.tool-btn').forEach(b => {
+                b.className = "tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium";
+            });
+            const activeBtn = document.getElementById(`tool-${tool}`);
+            if (activeBtn) {
+                activeBtn.className = "tool-btn p-3 rounded-xl border border-indigo-500 bg-indigo-50 text-indigo-700 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium";
+            }
+            
+            const tips = {
+                select: "Selecione qualquer item (porta, janela, móvel ou parede) e aperte [Delete].",
+                wall: "Clique e arraste para desenhar paredes.",
+                door: "Clique em uma parede para inserir porta.",
+                window: "Clique em uma parede para inserir janela.",
+                measure: "Clique em dois pontos para tirar cota."
+            };
+            document.getElementById('instruction-tip').innerText = tips[tool] || "";
+        }
+
+        function togglePanMode() {
+            isPanMode = !isPanMode;
+            const btn = document.getElementById('btn-pan');
+            if (isPanMode) {
+                btn.classList.add('bg-indigo-600', 'text-white');
+                canvas2D.parentElement.classList.add('panning');
+            } else {
+                btn.classList.remove('bg-indigo-600', 'text-white');
+                canvas2D.parentElement.classList.remove('panning');
+            }
+        }
+
+        function zoomCanvas(factor) {
+            scale2D = Math.max(0.4, Math.min(3.5, scale2D * factor));
+            document.getElementById('zoom-level-display').innerText = `${Math.round(scale2D * 100)}%`;
+        }
+
+        function resetZoom() {
+            scale2D = 1.0;
+            document.getElementById('zoom-level-display').innerText = '100%';
+        }
+
+        function screenToWorld(sx, sy) {
+            const x = (sx - pan2D.x) / (scale2D * 0.5);
+            const y = (sy - pan2D.y) / (scale2D * 0.5);
+            return { x, y };
+        }
+
+        function worldToScreen(wx, wy) {
+            const x = wx * (scale2D * 0.5) + pan2D.x;
+            const y = wy * (scale2D * 0.5) + pan2D.y;
+            return { x, y };
+        }
+
+        function snapCoord(val) {
+            if (!snapGrid) return val;
+            const gridSize = 25; 
+            return Math.round(val / gridSize) * gridSize;
+        }
+
+        function onMouseDown2D(e) {
+            const rect = canvas2D.getBoundingClientRect();
+            const sx = e.clientX - rect.left;
+            const sy = e.clientY - rect.top;
+            const world = screenToWorld(sx, sy);
+
+            if (isPanMode || e.button === 1 || e.ctrlKey) {
+                isDraggingCanvas = true;
+                dragStart2D = { x: sx - pan2D.x, y: sy - pan2D.y };
+                return;
+            }
+
+            if (currentTool === 'select') {
+                if (selectedItem && selectedItem.type === 'wall') {
+                    const w = project.walls.find(item => item.id === selectedItem.id);
+                    if (w) {
+                        const p1Scr = worldToScreen(w.x1, w.y1);
+                        const p2Scr = worldToScreen(w.x2, w.y2);
+                        if (Math.hypot(p1Scr.x - sx, p1Scr.y - sy) < 14) {
+                            draggingWallHandle = { wallId: w.id, handle: 'p1' };
+                            return;
+                        }
+                        if (Math.hypot(p2Scr.x - sx, p2Scr.y - sy) < 14) {
+                            draggingWallHandle = { wallId: w.id, handle: 'p2' };
+                            return;
+                        }
+                    }
+                }
+
+                selectedItem = hitTest2D(world.x, world.y);
+                updatePropertiesPanel();
+            } else if (currentTool === 'wall') {
+                drawingWallStart = { x: snapCoord(world.x), y: snapCoord(world.y) };
+            } else if (currentTool === 'measure') {
+                measuringStart = { x: world.x, y: world.y };
+                measuringEnd = { x: world.x, y: world.y };
+            } else if (currentTool === 'door' || currentTool === 'window') {
+                const wall = findClosestWall(world.x, world.y);
+                if (wall) {
+                    const offset = getWallOffset(wall, world.x, world.y);
+                    if (currentTool === 'door') {
+                        project.doors.push({ id: 'door_' + Date.now(), wallId: wall.id, offset, width: 90, height: 210, isHollow: false });
+                        showToast('Porta adicionada!');
+                    } else {
+                        project.windows.push({ id: 'win_' + Date.now(), wallId: wall.id, offset, width: 120, height: 120, sillHeight: 90 });
+                        showToast('Janela adicionada!');
+                    }
+                    saveAndSync();
+                } else {
+                    showToast('Clique próximo a uma parede.', 'error');
+                }
+            }
+        }
+
+        function onMouseMove2D(e) {
+            const rect = canvas2D.getBoundingClientRect();
+            const sx = e.clientX - rect.left;
+            const sy = e.clientY - rect.top;
+            const world = screenToWorld(sx, sy);
+            
+            currentMouseWorld = { x: snapCoord(world.x), y: snapCoord(world.y) };
+            document.getElementById('coord-display').innerText = `X: ${Math.round(world.x)}, Y: ${Math.round(world.y)}`;
+
+            if (isDraggingCanvas) {
+                pan2D.x = sx - dragStart2D.x;
+                pan2D.y = sy - dragStart2D.y;
+                return;
+            }
+
+            if (draggingWallHandle) {
+                const w = project.walls.find(item => item.id === draggingWallHandle.wallId);
+                if (w) {
+                    const nx = snapCoord(world.x);
+                    const ny = snapCoord(world.y);
+                    if (draggingWallHandle.handle === 'p1') { w.x1 = nx; w.y1 = ny; }
+                    else if (draggingWallHandle.handle === 'p2') { w.x2 = nx; w.y2 = ny; }
+                    saveAndSync();
+                }
+                return;
+            }
+
+            if (currentTool === 'measure' && measuringStart) {
+                measuringEnd = { x: world.x, y: world.y };
+            }
+        }
+
+        function onMouseUp2D(e) {
+            if (isDraggingCanvas) { isDraggingCanvas = false; return; }
+            if (draggingWallHandle) {
+                draggingWallHandle = null;
+                showToast('Área de divisão ajustada com sucesso!');
+                return;
+            }
+            if (currentTool === 'wall' && drawingWallStart) {
+                const rect = canvas2D.getBoundingClientRect();
+                const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
+                const endX = snapCoord(world.x);
+                const endY = snapCoord(world.y);
+                
+                if (Math.hypot(endX - drawingWallStart.x, endY - drawingWallStart.y) > 20) {
+                    project.walls.push({
+                        id: 'wall_' + Date.now(),
+                        x1: drawingWallStart.x,
+                        y1: drawingWallStart.y,
+                        x2: endX,
+                        y2: endY,
+                        thickness: wallThicknessDefault,
+                        height: wallHeightDefault
+                    });
+                    saveAndSync();
+                    showToast('Parede criada!');
+                }
+                drawingWallStart = null;
+            }
+            if (currentTool === 'measure' && measuringStart) {
+                measuringStart = null; measuringEnd = null;
+            }
+        }
+
+        function onWheel2D(e) {
+            e.preventDefault();
+            zoomCanvas(e.deltaY < 0 ? 1.15 : 0.85);
+        }
+
+        function hitTest2D(x, y) {
+            for (let f of project.furniture) {
+                if (Math.hypot(f.x - x, f.y - y) < 55) return { type: 'furniture', id: f.id };
+            }
+            for (let d of project.doors) {
+                const w = project.walls.find(item => item.id === d.wallId);
+                if (!w) continue;
+                const pos = { x: w.x1 + (w.x2 - w.x1) * d.offset, y: w.y1 + (w.y2 - w.y1) * d.offset };
+                if (Math.hypot(pos.x - x, pos.y - y) < 35) return { type: 'door', id: d.id };
+            }
+            for (let win of project.windows) {
+                const w = project.walls.find(item => item.id === win.wallId);
+                if (!w) continue;
+                const pos = { x: w.x1 + (w.x2 - w.x1) * win.offset, y: w.y1 + (w.y2 - w.y1) * win.offset };
+                if (Math.hypot(pos.x - x, pos.y - y) < 35) return { type: 'window', id: win.id };
+            }
+            for (let w of project.walls) {
+                if (distToSegment({ x, y }, { x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 }) < (w.thickness / 2 + 12)) {
+                    return { type: 'wall', id: w.id };
+                }
+            }
+            return null;
+        }
+
+        function distToSegment(p, p1, p2) {
+            const l2 = (p1.x - p2.x)**2 + (p1.y - p2.y)**2;
+            if (l2 === 0) return Math.hypot(p.x - p1.x, p.y - p1.y);
+            let t = ((p.x - p1.x) * (p2.x - p1.x) + (p.y - p1.y) * (p2.y - p1.y)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return Math.hypot(p.x - (p1.x + t * (p2.x - p1.x)), p.y - (p1.y + t * (p2.y - p1.y)));
+        }
+
+        function findClosestWall(x, y) {
+            let closest = null, minDist = Infinity;
+            for (let w of project.walls) {
+                const d = distToSegment({ x, y }, { x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 });
+                if (d < minDist) { minDist = d; closest = w; }
+            }
+            return minDist < 60 ? closest : null;
+        }
+
+        function getWallOffset(wall, x, y) {
+            const len = Math.hypot(wall.x2 - wall.x1, wall.y2 - wall.y1);
+            if (len === 0) return 0.5;
+            const dot = ((x - wall.x1) * (wall.x2 - wall.x1) + (y - wall.y1) * (wall.y2 - wall.y1)) / (len * len);
+            return Math.max(0.1, Math.min(0.9, dot));
+        }
+
+        function addFurniture(type) {
+            const catalog = {
+                bed: { name: 'Cama Casal', w: 140, d: 190, h: 50 },
+                sofa: { name: 'Sofá 3 Lugares', w: 210, d: 90, h: 75 },
+                table: { name: 'Mesa de Jantar', w: 120, d: 80, h: 75 },
+                kitchen: { name: 'Módulo Cozinha', w: 120, d: 60, h: 85 },
+                tv: { name: 'Rack com TV', w: 160, d: 45, h: 60 },
+                toilet: { name: 'Vaso Sanitário', w: 50, d: 70, h: 80 }
+            };
+            const def = catalog[type] || { name: 'Móvel', w: 100, d: 100, h: 75 };
+            project.furniture.push({ id: 'furn_' + Date.now(), type, name: def.name, x: 0, y: 0, rotation: 0, width: def.w, depth: def.d, height: def.h });
+            saveAndSync();
+            showToast(`${def.name} adicionado!`);
+            selectedItem = { type: 'furniture', id: project.furniture[project.furniture.length - 1].id };
+            updatePropertiesPanel();
+        }
+
+        function updatePropertiesPanel() {
+            const panel = document.getElementById('properties-panel');
+            const content = document.getElementById('properties-content');
+            if (!selectedItem) { panel.classList.add('hidden'); return; }
+            panel.classList.remove('hidden');
+            content.innerHTML = '';
+
+            const unitLbl = currentUnit === 'm' ? 'm' : 'cm';
+
+            if (selectedItem.type === 'furniture') {
+                const f = project.furniture.find(item => item.id === selectedItem.id);
+                if (!f) return;
+                const displayW = currentUnit === 'm' ? (f.width / 100).toFixed(2) : Math.round(f.width);
+                const displayD = currentUnit === 'm' ? (f.depth / 100).toFixed(2) : Math.round(f.depth);
+                content.innerHTML = `
+                    <div class="font-semibold text-slate-800">${f.name}</div>
+                    <div class="space-y-2.5">
+                        <div><label class="text-slate-500">Rotação (${f.rotation || 0}°)</label>
+                        <input type="range" min="0" max="360" step="15" value="${f.rotation || 0}" oninput="updateItemProp('furniture', '${f.id}', 'rotation', this.value)" class="w-full accent-indigo-600 cursor-pointer"></div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('furniture', '${f.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
+                            <div><label class="text-slate-500">Profundidade (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayD}" onchange="updateItemPropUnit('furniture', '${f.id}', 'depth', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
+                        </div>
+                    </div>
+                `;
+            } else if (selectedItem.type === 'wall') {
+                const w = project.walls.find(item => item.id === selectedItem.id);
+                if (!w) return;
+                const len = Math.hypot(w.x2 - w.x1, w.y2 - w.y1);
+                const displayLen = currentUnit === 'm' ? (len / 100).toFixed(2) : Math.round(len);
+                const displayH = currentUnit === 'm' ? ((w.height || 280) / 100).toFixed(2) : (w.height || 280);
+                content.innerHTML = `
+                    <div class="font-semibold text-slate-800">Parede / Divisão</div>
+                    <div class="space-y-2.5">
+                        <div class="text-slate-500 font-mono text-[11px]">Comprimento: ${formatUnit(len)}</div>
+                        <div><label class="text-slate-500">Ajustar Comprimento (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayLen}" onchange="updateWallLengthUnit('${w.id}', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-700"></div>
+                        <div><label class="text-slate-500">Altura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayH}" onchange="updateItemPropUnit('wall', '${w.id}', 'height', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-700"></div>
+                        <div><label class="text-slate-500">Espessura (cm)</label>
+                        <select onchange="updateItemProp('wall', '${w.id}', 'thickness', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-700 text-xs">
+                            <option value="15" ${w.thickness===15?'selected':''}>15 cm</option>
+                            <option value="20" ${w.thickness===20?'selected':''}>20 cm</option>
+                            <option value="30" ${w.thickness===30?'selected':''}>30 cm</option>
+                        </select></div>
+                    </div>
+                `;
+            } else if (selectedItem.type === 'door') {
+                const d = project.doors.find(item => item.id === selectedItem.id);
+                if (!d) return;
+                const displayW = currentUnit === 'm' ? ((d.width || 90) / 100).toFixed(2) : (d.width || 90);
+                const displayH = currentUnit === 'm' ? ((d.height || 210) / 100).toFixed(2) : (d.height || 210);
+                content.innerHTML = `
+                    <div class="font-semibold text-slate-800">Porta Selecionada</div>
+                    <div class="space-y-2.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-600">Porta Vazada (Vão Livre)</span>
+                            <input type="checkbox" ${d.isHollow ? 'checked' : ''} onchange="updateItemProp('door', '${d.id}', 'isHollow', this.checked)" class="rounded bg-white border-slate-300 text-indigo-600 w-4 h-4 cursor-pointer">
+                        </div>
+                        <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('door', '${d.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
+                        <div><label class="text-slate-500">Altura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayH}" onchange="updateItemPropUnit('door', '${d.id}', 'height', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
+                    </div>
+                `;
+            } else if (selectedItem.type === 'window') {
+                const win = project.windows.find(item => item.id === selectedItem.id);
+                if (!win) return;
+                const displayW = currentUnit === 'm' ? ((win.width || 120) / 100).toFixed(2) : (win.width || 120);
+                const displayH = currentUnit === 'm' ? ((win.height || 120) / 100).toFixed(2) : (win.height || 120);
+                const displaySill = currentUnit === 'm' ? ((win.sillHeight || 90) / 100).toFixed(2) : (win.sillHeight || 90);
+                content.innerHTML = `
+                    <div class="font-semibold text-slate-800">Janela Selecionada</div>
+                    <div class="space-y-2.5">
+                        <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('window', '${win.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
+                        <div><label class="text-slate-500">Altura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayH}" onchange="updateItemPropUnit('window', '${win.id}', 'height', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
+                        <div><label class="text-slate-500">Peitoril (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displaySill}" onchange="updateItemPropUnit('window', '${win.id}', 'sillHeight', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
+                    </div>
+                `;
+            }
+        }
+
+        function updateItemProp(category, id, prop, val) {
+            let collection = category === 'furniture' ? project.furniture : category === 'wall' ? project.walls : category === 'door' ? project.doors : project.windows;
+            const item = collection.find(i => i.id === id);
+            if (item) {
+                item[prop] = prop === 'isHollow' ? val : parseFloat(val);
+                saveAndSync();
+                showToast('Atualizado com sucesso!');
+            }
+        }
+
+        function updateItemPropUnit(category, id, prop, val) {
+            const cmVal = parseUnitInput(val);
+            updateItemProp(category, id, prop, cmVal);
+        }
+
+        function updateWallLengthUnit(id, newLenVal) {
+            const w = project.walls.find(i => i.id === id);
+            if (!w) return;
+            const newLenCm = parseUnitInput(newLenVal);
+            const len = Math.hypot(w.x2 - w.x1, w.y2 - w.y1);
+            if (len === 0) return;
+            const ratio = newLenCm / len;
+            w.x2 = w.x1 + (w.x2 - w.x1) * ratio;
+            w.y2 = w.y1 + (w.y2 - w.y1) * ratio;
+            saveAndSync();
+            showToast('Comprimento de parede ajustado!');
+        }
+
+        function deleteSelectedItem() {
+            if (!selectedItem) return;
+            if (selectedItem.type === 'furniture') {
+                project.furniture = project.furniture.filter(f => f.id !== selectedItem.id);
+            } else if (selectedItem.type === 'wall') {
+                project.walls = project.walls.filter(w => w.id !== selectedItem.id);
+                project.doors = project.doors.filter(d => d.wallId !== selectedItem.id);
+                project.windows = project.windows.filter(w => w.id !== selectedItem.id);
+            } else if (selectedItem.type === 'door') {
+                project.doors = project.doors.filter(d => d.id !== selectedItem.id);
+            } else if (selectedItem.type === 'window') {
+                project.windows = project.windows.filter(w => w.id !== selectedItem.id);
+            }
+            selectedItem = null;
+            updatePropertiesPanel();
+            saveAndSync();
+            showToast('Item removido com sucesso.');
+        }
+
+        function render2DLoop() {
+            if (viewMode === '2d' || viewMode === 'split') draw2D();
+            requestAnimationFrame(render2DLoop);
+        }
+
+        function draw2D() {
+            ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
+
+            // Grade
+            ctx2D.strokeStyle = '#e2e8f0';
+            ctx2D.lineWidth = 1;
+            const gridPx = 50 * (scale2D * 0.5);
+            const startX = pan2D.x % gridPx, startY = pan2D.y % gridPx;
+            ctx2D.beginPath();
+            for (let x = startX; x < canvas2D.width; x += gridPx) { ctx2D.moveTo(x, 0); ctx2D.lineTo(x, canvas2D.height); }
+            for (let y = startY; y < canvas2D.height; y += gridPx) { ctx2D.moveTo(0, y); ctx2D.lineTo(canvas2D.width, y); }
+            ctx2D.stroke();
+
+            // Paredes
+            for (let w of project.walls) {
+                const p1 = worldToScreen(w.x1, w.y1), p2 = worldToScreen(w.x2, w.y2);
+                ctx2D.strokeStyle = selectedItem && selectedItem.id === w.id ? '#6366f1' : '#64748b';
+                ctx2D.lineWidth = (w.thickness || 20) * (scale2D * 0.5);
+                ctx2D.lineCap = 'round';
+                ctx2D.beginPath(); ctx2D.moveTo(p1.x, p1.y); ctx2D.lineTo(p2.x, p2.y); ctx2D.stroke();
+
+                if (selectedItem && selectedItem.id === w.id) {
+                    ctx2D.fillStyle = '#ffffff'; ctx2D.strokeStyle = '#4f46e5'; ctx2D.lineWidth = 3;
+                    [p1, p2].forEach(pt => {
+                        ctx2D.beginPath(); ctx2D.arc(pt.x, pt.y, 8, 0, Math.PI * 2); ctx2D.fill(); ctx2D.stroke();
+                    });
+                }
+            }
+
+            // Portas
+            for (let d of project.doors) {
+                const w = project.walls.find(item => item.id === d.wallId);
+                if (!w) continue;
+                const pos = { x: w.x1 + (w.x2 - w.x1) * d.offset, y: w.y1 + (w.y2 - w.y1) * d.offset };
+                const pt = worldToScreen(pos.x, pos.y);
+                ctx2D.fillStyle = d.isHollow ? '#10b981' : '#0891b2';
+                ctx2D.strokeStyle = selectedItem && selectedItem.id === d.id ? '#ffffff' : 'transparent';
+                ctx2D.lineWidth = 2;
+                ctx2D.beginPath(); ctx2D.arc(pt.x, pt.y, selectedItem && selectedItem.id === d.id ? 10 : 8, 0, Math.PI * 2); ctx2D.fill(); ctx2D.stroke();
+            }
+
+            // Janelas
+            for (let win of project.windows) {
+                const w = project.walls.find(item => item.id === win.wallId);
+                if (!w) continue;
+                const pos = { x: w.x1 + (w.x2 - w.x1) * win.offset, y: w.y1 + (w.y2 - w.y1) * win.offset };
+                const pt = worldToScreen(pos.x, pos.y);
+                ctx2D.fillStyle = '#0ea5e9';
+                ctx2D.strokeStyle = selectedItem && selectedItem.id === win.id ? '#ffffff' : 'transparent';
+                ctx2D.lineWidth = 2;
+                ctx2D.fillRect(pt.x - 7, pt.y - 7, 14, 14);
+                ctx2D.strokeRect(pt.x - 7, pt.y - 7, 14, 14);
+            }
+
+            // Móveis
+            for (let f of project.furniture) {
+                const pt = worldToScreen(f.x, f.y);
+                ctx2D.save();
+                ctx2D.translate(pt.x, pt.y);
+                ctx2D.rotate((f.rotation || 0) * Math.PI / 180);
+                const wPx = f.width * (scale2D * 0.5), dPx = f.depth * (scale2D * 0.5);
+                ctx2D.fillStyle = selectedItem && selectedItem.id === f.id ? 'rgba(99, 102, 241, 0.3)' : 'rgba(241, 245, 249, 0.9)';
+                ctx2D.strokeStyle = selectedItem && selectedItem.id === f.id ? '#4f46e5' : '#94a3b8';
+                ctx2D.lineWidth = selectedItem && selectedItem.id === f.id ? 3 : 2;
+                ctx2D.fillRect(-wPx/2, -dPx/2, wPx, dPx);
+                ctx2D.strokeRect(-wPx/2, -dPx/2, wPx, dPx);
+                ctx2D.fillStyle = '#334155'; ctx2D.font = '10px Inter'; ctx2D.textAlign = 'center';
+                ctx2D.fillText(f.name, 0, 4);
+                ctx2D.restore();
+            }
+
+            if (currentTool === 'wall' && drawingWallStart) {
+                const p1 = worldToScreen(drawingWallStart.x, drawingWallStart.y);
+                const p2 = worldToScreen(currentMouseWorld.x, currentMouseWorld.y);
+                ctx2D.strokeStyle = 'rgba(99, 102, 241, 0.7)';
+                ctx2D.lineWidth = wallThicknessDefault * (scale2D * 0.5);
+                ctx2D.beginPath(); ctx2D.moveTo(p1.x, p1.y); ctx2D.lineTo(p2.x, p2.y); ctx2D.stroke();
+            }
+
+            if (currentTool === 'measure' && measuringStart && measuringEnd) {
+                const p1 = worldToScreen(measuringStart.x, measuringStart.y);
+                const p2 = worldToScreen(measuringEnd.x, measuringEnd.y);
+                const dist = Math.hypot(measuringEnd.x - measuringStart.x, measuringEnd.y - measuringStart.y);
+                ctx2D.strokeStyle = '#9333ea'; ctx2D.lineWidth = 2; ctx2D.setLineDash([4, 4]);
+                ctx2D.beginPath(); ctx2D.moveTo(p1.x, p1.y); ctx2D.lineTo(p2.x, p2.y); ctx2D.stroke(); ctx2D.setLineDash([]);
+                ctx2D.fillStyle = '#9333ea'; ctx2D.font = 'bold 12px Inter'; ctx2D.textAlign = 'center';
+                ctx2D.fillText(formatUnit(dist), (p1.x + p2.x) / 2, (p1.y + p2.y) / 2 - 10);
+            }
+        }
+
+        // --- Three.js 3D Engine ---
+        function init3DIfNeeded() {
+            if (is3DInitialized) { update3DScene(); return; }
+
+            const host = document.getElementById('canvas-3d-host');
+            scene3D = new THREE.Scene();
+            scene3D.background = new THREE.Color(0x090d16); 
+            scene3D.fog = new THREE.FogExp2(0x090d16, 0.0008);
+
+            camera3D = new THREE.PerspectiveCamera(55, host.clientWidth / host.clientHeight, 0.1, 10000);
+            camera3D.position.set(0, 500, 700);
+
+            renderer3D = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+            renderer3D.setSize(host.clientWidth, host.clientHeight);
+            renderer3D.shadowMap.enabled = true;
+            renderer3D.shadowMap.type = THREE.PCFSoftShadowMap;
+            host.appendChild(renderer3D.domElement);
+
+            controls3D = new THREE.OrbitControls(camera3D, renderer3D.domElement);
+            controls3D.enableDamping = true;
+            controls3D.dampingFactor = 0.05;
+            controls3D.maxPolarAngle = Math.PI / 2 - 0.02;
+
+            ambientLight = new THREE.AmbientLight(0xffffff, 1.4);
+            scene3D.add(ambientLight);
+
+            directionalLight3D = new THREE.DirectionalLight(0xffffff, 1.8);
+            directionalLight3D.position.set(1500, 3000, 1500);
+            directionalLight3D.castShadow = true;
+            directionalLight3D.shadow.mapSize.width = 4096;
+            directionalLight3D.shadow.mapSize.height = 4096;
+            directionalLight3D.shadow.camera.near = 10;
+            directionalLight3D.shadow.camera.far = 8000;
+            const bSize = 4000;
+            directionalLight3D.shadow.camera.left = -bSize;
+            directionalLight3D.shadow.camera.right = bSize;
+            directionalLight3D.shadow.camera.top = bSize;
+            directionalLight3D.shadow.camera.bottom = -bSize;
+            directionalLight3D.shadow.bias = -0.0001;
+            scene3D.add(directionalLight3D);
+
+            sunLight = new THREE.DirectionalLight(0xfffaed, 1.6);
+            sunLight.position.set(500, 1500, 500);
+            sunLight.visible = false;
+            scene3D.add(sunLight);
+
+            fillLight1 = new THREE.DirectionalLight(0xdbeafe, 0.8);
+            fillLight1.position.set(-1500, 2000, -1500);
+            scene3D.add(fillLight1);
+
+            const grid = new THREE.GridHelper(4000, 80, 0x475569, 0x1e293b);
+            grid.position.y = -0.5;
+            scene3D.add(grid);
+
+            is3DInitialized = true;
+            updateLightingMode();
+            update3DScene();
+            animate3D();
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            if (viewMode === '3d' || viewMode === 'split') {
+                if (controls3D) controls3D.update();
+                renderer3D.render(scene3D, camera3D);
+            }
+        }
+
+        function updateLightingMode() {
+            const mode = document.getElementById('lighting-mode').value;
+            const timeContainer = document.getElementById('time-container');
+            if (mode === 'constant' || mode === 'studio') {
+                timeContainer.classList.add('hidden');
+                if (directionalLight3D) directionalLight3D.visible = true;
+                if (sunLight) sunLight.visible = false;
+                if (ambientLight) ambientLight.intensity = mode === 'constant' ? 1.5 : 1.8;
+                if (fillLight1) fillLight1.intensity = 0.9;
+            } else if (mode === 'suntime') {
+                timeContainer.classList.remove('hidden');
+                if (directionalLight3D) directionalLight3D.visible = false;
+                if (sunLight) sunLight.visible = true;
+                updateLighting();
+            }
+        }
+
+        function update3DScene() {
+            if (!is3DInitialized) return;
+            if (houseGroup3D) scene3D.remove(houseGroup3D);
+            houseGroup3D = new THREE.Group();
+
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7, metalness: 0.05 });
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.5, metalness: 0.1 });
+
+            // Paredes e Vãos Livres (Portas Vazadas) gerados através de cortes/segmentos
+            project.walls.forEach(w => {
+                const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
+                const length = Math.hypot(dx, dy);
+                if (length === 0) return;
+                const angle = Math.atan2(dy, dx);
+                const height = w.height || 280, thickness = w.thickness || 20;
+
+                // Filtrar portas vazadas (isHollow) nesta parede para criar vãos divididos
+                const wallDoors = project.doors.filter(d => d.wallId === w.id && d.isHollow)
+                    .map(d => ({
+                        offset: d.offset,
+                        width: d.width || 90,
+                        height: d.height || 210
+                    }))
+                    .sort((a, b) => a.offset - b.offset);
+
+                if (wallDoors.length === 0) {
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(length, height, thickness), wallMat);
+                    mesh.castShadow = true; mesh.receiveShadow = true;
+                    mesh.position.set((w.x1 + w.x2) / 2, height / 2, (w.y1 + w.y2) / 2);
+                    mesh.rotation.y = -angle;
+                    houseGroup3D.add(mesh);
+                } else {
+                    // Montar segmentos da parede divididos pelos vãos livres
+                    let currentOffset = 0;
+                    wallDoors.forEach(d => {
+                        const doorCenterDist = d.offset * length;
+                        const segLen = doorCenterDist - (d.width / 2) - currentOffset;
+                        if (segLen > 1) {
+                            const segCenter = currentOffset + segLen / 2;
+                            const localX = segCenter - length / 2;
+                            const mesh = new THREE.Mesh(new THREE.BoxGeometry(segLen, height, thickness), wallMat);
+                            mesh.castShadow = true; mesh.receiveShadow = true;
+                            mesh.position.set(localX, height / 2, 0);
+                            
+                            const groupSeg = new THREE.Group();
+                            groupSeg.add(mesh);
+                            groupSeg.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
+                            groupSeg.rotation.y = -angle;
+                            houseGroup3D.add(groupSeg);
+                        }
+
+                        // Lado superior do vão (vergalhão acima da porta vazada)
+                        const topH = height - d.height;
+                        if (topH > 0) {
+                            const topMesh = new THREE.Mesh(new THREE.BoxGeometry(d.width, topH, thickness), wallMat);
+                            topMesh.castShadow = true; topMesh.receiveShadow = true;
+                            topMesh.position.set(doorCenterDist - length / 2, d.height + topH / 2, 0);
+                            
+                            const groupTop = new THREE.Group();
+                            groupTop.add(topMesh);
+                            groupTop.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
+                            groupTop.rotation.y = -angle;
+                            houseGroup3D.add(groupTop);
+                        }
+
+                        currentOffset = doorCenterDist + (d.width / 2);
+                    });
+
+                    const finalSegLen = length - currentOffset;
+                    if (finalSegLen > 1) {
+                        const segCenter = currentOffset + finalSegLen / 2;
+                        const localX = segCenter - length / 2;
+                        const mesh = new THREE.Mesh(new THREE.BoxGeometry(finalSegLen, height, thickness), wallMat);
+                        mesh.castShadow = true; mesh.receiveShadow = true;
+                        mesh.position.set(localX, height / 2, 0);
+                        
+                        const groupFinal = new THREE.Group();
+                        groupFinal.add(mesh);
+                        groupFinal.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
+                        groupFinal.rotation.y = -angle;
+                        houseGroup3D.add(groupFinal);
+                    }
+                }
+            });
+
+            // Portas Comuns (Não vazadas)
+            const doorMat = new THREE.MeshStandardMaterial({ color: 0x0891b2, roughness: 0.4 });
+            project.doors.forEach(d => {
+                const w = project.walls.find(item => item.id === d.wallId);
+                if (!w) return;
+                if (d.isHollow) return; // Ignora portas vazadas na folha sólida
+                const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
+                const angle = Math.atan2(dy, dx);
+                const pos = { x: w.x1 + dx * d.offset, y: w.y1 + dy * d.offset };
+                const doorH = d.height || 210, doorW = d.width || 90;
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, (w.thickness || 20) + 2), doorMat);
+                mesh.position.set(pos.x, doorH / 2, pos.y);
+                mesh.rotation.y = -angle;
+                houseGroup3D.add(mesh);
+            });
+
+            // Janelas
+            const winMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.4, roughness: 0.1 });
+            project.windows.forEach(win => {
+                const w = project.walls.find(item => item.id === win.wallId);
+                if (!w) return;
+                const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
+                const angle = Math.atan2(dy, dx);
+                const pos = { x: w.x1 + dx * win.offset, y: w.y1 + dy * win.offset };
+                const winH = win.height || 120, winW = win.width || 120, sill = win.sillHeight || 90;
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(winW, winH, (w.thickness || 20) + 4), winMat);
+                mesh.position.set(pos.x, sill + winH / 2, pos.y);
+                mesh.rotation.y = -angle;
+                houseGroup3D.add(mesh);
+            });
+
+            // Piso e Teto
+            let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+            let hasElements = project.walls.length > 0 || project.furniture.length > 0;
+
+            if (project.walls.length > 0) {
+                project.walls.forEach(w => {
+                    minX = Math.min(minX, w.x1, w.x2); maxX = Math.max(maxX, w.x1, w.x2);
+                    minZ = Math.min(minZ, w.y1, w.y2); maxZ = Math.max(maxZ, w.y1, w.y2);
+                });
+            }
+            if (project.furniture.length > 0) {
+                project.furniture.forEach(f => {
+                    minX = Math.min(minX, f.x - f.width/2); maxX = Math.max(maxX, f.x + f.width/2);
+                    minZ = Math.min(minZ, f.y - f.depth/2); maxZ = Math.max(maxZ, f.y + f.depth/2);
+                });
+            }
+
+            if (hasElements) {
+                const width = (maxX - minX) + 300, depth = (maxZ - minZ) + 300;
+                const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
+
+                const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMat);
+                floorMesh.rotation.x = -Math.PI / 2;
+                floorMesh.position.set(cx, 0, cz);
+                floorMesh.receiveShadow = true;
+                houseGroup3D.add(floorMesh);
+
+                const roofMode = document.getElementById('roof-mode').value;
+                if (roofMode === 'flat') {
+                    const roofMesh = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), wallMat);
+                    roofMesh.rotation.x = Math.PI / 2;
+                    roofMesh.position.set(cx, 280, cz);
+                    roofMesh.receiveShadow = true;
+                    houseGroup3D.add(roofMesh);
+                }
+            }
+
+            // Móveis
+            project.furniture.forEach(f => {
+                const group = new THREE.Group();
+                let color = 0x818cf8;
+                if (f.type === 'sofa') color = 0xfbbf24;
+                if (f.type === 'table') color = 0x34d399;
+                if (f.type === 'kitchen') color = 0x22d3ee;
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(f.width, f.height || 60, f.depth), new THREE.MeshStandardMaterial({ color, roughness: 0.4 }));
+                mesh.castShadow = true; mesh.receiveShadow = true;
+                mesh.position.y = (f.height || 60) / 2;
+                group.add(mesh);
+                group.position.set(f.x, 0, f.y);
+                group.rotation.y = -(f.rotation || 0) * Math.PI / 180;
+                houseGroup3D.add(group);
+            });
+
+            scene3D.add(houseGroup3D);
+        }
+
+        function center3DCamera(showAlert = true) {
+            if (!is3DInitialized) return;
+            let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+            let hasItems = false;
+
+            if (project.walls.length > 0) {
+                hasItems = true;
+                project.walls.forEach(w => {
+                    minX = Math.min(minX, w.x1, w.x2); maxX = Math.max(maxX, w.x1, w.x2);
+                    minZ = Math.min(minZ, w.y1, w.y2); maxZ = Math.max(maxZ, w.y1, w.y2);
+                });
+            }
+            if (project.furniture.length > 0) {
+                hasItems = true;
+                project.furniture.forEach(f => {
+                    minX = Math.min(minX, f.x - f.width/2); maxX = Math.max(maxX, f.x + f.width/2);
+                    minZ = Math.min(minZ, f.y - f.depth/2); maxZ = Math.max(maxZ, f.y + f.depth/2);
+                });
+            }
+
+            if (!hasItems) {
+                if (showAlert) showToast('Nenhum item ou parede encontrado para centralizar.', 'error');
+                camera3D.position.set(0, 500, 700); controls3D.target.set(0, 0, 0); controls3D.update();
+                return;
+            }
+
+            const centerX = (minX + maxX) / 2, centerZ = (minZ + maxZ) / 2;
+            const maxDim = Math.max(maxX - minX, maxZ - minZ, 300);
+            controls3D.target.set(centerX, 0, centerZ);
+            camera3D.position.set(centerX, maxDim * 1.3, centerZ + maxDim * 1.6);
+            controls3D.update();
+            if (showAlert) showToast('Visualização 3D centralizada com sucesso!');
+        }
+
+        function updateLighting() {
+            const time = parseFloat(document.getElementById('sun-time').value);
+            document.getElementById('time-val').innerText = `${Math.floor(time)}:${time % 1 === 0 ? '00' : '30'}`;
+            const angle = ((time - 6) / 13) * Math.PI;
+            const radius = 1500;
+            sunLight.position.x = Math.cos(angle) * radius;
+            sunLight.position.y = Math.sin(angle) * radius;
+            sunLight.position.z = 600;
+        }
+
+        function saveAndSync() {
+            localStorage.setItem('arquistudio_pro_project_v2', JSON.stringify(project));
+            if (is3DInitialized) update3DScene();
+        }
+
+        function saveProject() {
+            project.name = document.getElementById('project-name-input').value || "Projeto sem título";
+            document.getElementById('project-title-display').innerText = project.name;
+            saveAndSync();
+            closeModal('project-modal');
+            showToast('Projeto salvo!');
+        }
+
+        function clearProject() {
+            if (confirm("Deseja limpar todo o projeto?")) {
+                project = { name: "Projeto em Branco", walls: [], doors: [], windows: [], furniture: [] };
+                selectedItem = null; updatePropertiesPanel(); saveAndSync();
+                showToast('Projeto limpo.');
+            }
+        }
+
+        function exportJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project, null, 2));
+            const dl = document.createElement('a'); dl.setAttribute("href", dataStr);
+            dl.setAttribute("download", `${project.name.toLowerCase().replace(/\s+/g, '_')}.json`);
+            dl.click(); showToast('JSON exportado!');
+        }
+
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    project = JSON.parse(e.target.result);
+                    document.getElementById('project-name-input').value = project.name;
+                    document.getElementById('project-title-display').innerText = project.name;
+                    saveAndSync(); showToast('Projeto importado!');
+                } catch (err) { showToast('Erro ao ler arquivo.', 'error'); }
+            };
+            reader.readAsText(file);
+        }
+
+        function exportSnapshot() {
+            if (viewMode === '3d' || (viewMode === 'split' && is3DInitialized)) {
+                renderer3D.render(scene3D, camera3D);
+                const dl = document.createElement('a');
+                dl.href = renderer3D.domElement.toDataURL('image/png');
+                dl.download = `${project.name}_3d.png`; dl.click();
+            } else {
+                const dl = document.createElement('a');
+                dl.href = canvas2D.toDataURL('image/png');
+                dl.download = `${project.name}_2d.png`; dl.click();
+            }
+            showToast('Imagem exportada!');
+        }
+
+        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+    </script>
+</body>
+</html>
