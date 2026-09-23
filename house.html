@@ -23,7 +23,6 @@
         .canvas-container { cursor: crosshair; }
         .canvas-container.panning { cursor: grab; }
         .canvas-container.panning:active { cursor: grabbing; }
-        /* Divisor redimensionável */
         .resizer-bar {
             width: 8px;
             background: #cbd5e1;
@@ -49,7 +48,7 @@
             </div>
             <div>
                 <h1 class="font-bold text-sm md:text-base tracking-tight flex items-center gap-2 text-slate-900">
-                    ArquiStudio Pro <span class="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-200 font-medium">Vãos & Split Pro</span>
+                    ArquiStudio Pro <span class="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-200 font-medium">Vãos & Telhados Pro</span>
                 </h1>
                 <p class="text-xs text-slate-500" id="project-title-display">Projeto sem título</p>
             </div>
@@ -179,18 +178,17 @@
 
             <div class="p-3 bg-slate-100 border-t border-slate-200 text-[11px] text-slate-600 flex items-center gap-2">
                 <i data-lucide="info" class="w-4 h-4 text-indigo-600 shrink-0"></i>
-                <span id="instruction-tip">Clique em qualquer item (porta, janela, móvel ou parede) e aperte [Delete] para removê-lo.</span>
+                <span id="instruction-tip">Paredes próximas agora se conectam automaticamente nas quinas.</span>
             </div>
         </aside>
 
-        <!-- Main Viewports Container (Flex Row for Split Mode) -->
+        <!-- Main Viewports Container -->
         <main class="flex-1 relative bg-white overflow-hidden flex flex-row" id="main-viewport-container">
             
             <!-- 2D Editor Viewport -->
             <div id="wrapper-2d" class="relative h-full canvas-container overflow-hidden" style="width: 100%; flex: 0 0 100%;">
                 <canvas id="canvas-2d" class="block w-full h-full"></canvas>
                 
-                <!-- 2D HUD Controls -->
                 <div class="absolute bottom-6 left-6 bg-white/90 backdrop-blur-md border border-slate-200 rounded-2xl shadow-lg p-1.5 flex items-center space-x-1 z-10 text-slate-700">
                     <button onclick="zoomCanvas(1.2)" class="w-8 h-8 rounded-xl hover:bg-slate-100 flex items-center justify-center transition" title="Zoom In"><i data-lucide="plus" class="w-4 h-4"></i></button>
                     <button onclick="resetZoom()" class="px-3 h-8 rounded-xl hover:bg-slate-100 text-xs font-semibold transition" id="zoom-level-display">100%</button>
@@ -200,17 +198,15 @@
                 </div>
             </div>
 
-            <!-- Resizer Bar para o modo Split -->
             <div id="resizer-split" class="resizer-bar" title="Arraste para redimensionar as telas"></div>
 
-            <!-- 3D Viewport (Dark Theme) -->
+            <!-- 3D Viewport -->
             <div id="wrapper-3d" class="relative h-full hidden bg-slate-950" style="width: 0%; flex: 0 0 0%;">
                 <div id="canvas-3d-host" class="w-full h-full"></div>
                 
-                <!-- 3D Controls HUD -->
                 <div class="absolute top-6 right-6 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl p-4 flex flex-col gap-3.5 z-10 text-xs w-64 text-slate-200">
                     <h3 class="font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
-                        <i data-lucide="sun" class="w-4 h-4 text-amber-400"></i> Iluminação & Luz 3D
+                        <i data-lucide="sun" class="w-4 h-4 text-amber-400"></i> Iluminação & Cobertura
                     </h3>
                     
                     <button onclick="center3DCamera(true)" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded-xl transition flex items-center justify-center gap-2 shadow-md">
@@ -222,9 +218,9 @@
                             <span>Tipo de Iluminação</span>
                         </div>
                         <select id="lighting-mode" onchange="updateLightingMode()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-indigo-500">
-                            <option value="constant">Luz Uniforme Constante (Sem escurecer)</option>
-                            <option value="studio">Estúdio Neutro / Uniforme</option>
-                            <option value="suntime">Solar com Relógio (Dinâmica)</option>
+                            <option value="constant">Luz Uniforme Constante</option>
+                            <option value="studio">Estúdio Neutro</option>
+                            <option value="suntime">Solar Dinâmica</option>
                         </select>
                     </div>
 
@@ -244,11 +240,12 @@
                             <option value="transparent">Transparente (Corte)</option>
                             <option value="none">Sem Teto (Aberto)</option>
                             <option value="flat">Laje Plana Coberta</option>
+                            <option value="gable">Telhado Duas Águas (Inclinado)</option>
+                            <option value="shed">Telhado Uma Água (Shed)</option>
                         </select>
                     </div>
                 </div>
 
-                <!-- 3D Navigation Guide -->
                 <div class="absolute bottom-6 left-6 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl p-3 text-xs text-slate-300 z-10 hidden md:flex items-center gap-4 shadow-xl">
                     <span><i data-lucide="mouse-pointer" class="w-3.5 h-3.5 text-indigo-400 inline mr-1"></i> Esquerdo + Arrastar: Girar</span>
                     <span><i data-lucide="move" class="w-3.5 h-3.5 text-indigo-400 inline mr-1"></i> Direito + Arrastar: Mover</span>
@@ -298,14 +295,13 @@
     </div>
 
     <script>
-        // --- Application State ---
         let viewMode = '2d';
         let currentTool = 'select';
         let isPanMode = false;
         let snapGrid = true;
         let wallThicknessDefault = 20;
         let wallHeightDefault = 280;
-        let currentUnit = 'm'; // 'm' ou 'cm'
+        let currentUnit = 'm';
 
         let project = {
             name: "Projeto sem título",
@@ -347,8 +343,6 @@
         let sunLight, ambientLight, fillLight1, fillLight2, directionalLight3D;
         let houseGroup3D = null;
         let is3DInitialized = false;
-
-        // --- Lógica Corrigida de Redimensionamento do Split View ---
         let isResizingSplit = false;
 
         window.addEventListener('load', () => {
@@ -370,9 +364,7 @@
             window.addEventListener('keydown', (e) => {
                 if (e.key === 'Delete' || e.key === 'Backspace') {
                     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
-                    if (selectedItem) {
-                        deleteSelectedItem();
-                    }
+                    if (selectedItem) deleteSelectedItem();
                 }
             });
 
@@ -486,7 +478,6 @@
 
         function init2DCanvas() {
             resize2DCanvas();
-            
             canvas2D.addEventListener('mousedown', onMouseDown2D);
             canvas2D.addEventListener('mousemove', onMouseMove2D);
             canvas2D.addEventListener('mouseup', onMouseUp2D);
@@ -519,15 +510,6 @@
             if (activeBtn) {
                 activeBtn.className = "tool-btn p-3 rounded-xl border border-indigo-500 bg-indigo-50 text-indigo-700 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium";
             }
-            
-            const tips = {
-                select: "Selecione qualquer item (porta, janela, móvel ou parede) e aperte [Delete].",
-                wall: "Clique e arraste para desenhar paredes.",
-                door: "Clique em uma parede para inserir porta.",
-                window: "Clique em uma parede para inserir janela.",
-                measure: "Clique em dois pontos para tirar cota."
-            };
-            document.getElementById('instruction-tip').innerText = tips[tool] || "";
         }
 
         function togglePanMode() {
@@ -570,6 +552,27 @@
             return Math.round(val / gridSize) * gridSize;
         }
 
+        // --- Nova Lógica de Encaixe Automático (Snap de Quinas) ---
+        function getSnappedPoint(x, y, threshold = 25) {
+            let snappedX = snapCoord(x);
+            let snappedY = snapCoord(y);
+
+            // Verifica extremidades de paredes existentes
+            for (let w of project.walls) {
+                if (Math.hypot(w.x1 - snappedX, w.y1 - snappedY) < threshold) {
+                    snappedX = w.x1;
+                    snappedY = w.y1;
+                    break;
+                }
+                if (Math.hypot(w.x2 - snappedX, w.y2 - snappedY) < threshold) {
+                    snappedX = w.x2;
+                    snappedY = w.y2;
+                    break;
+                }
+            }
+            return { x: snappedX, y: snappedY };
+        }
+
         function onMouseDown2D(e) {
             const rect = canvas2D.getBoundingClientRect();
             const sx = e.clientX - rect.left;
@@ -598,11 +601,11 @@
                         }
                     }
                 }
-
                 selectedItem = hitTest2D(world.x, world.y);
                 updatePropertiesPanel();
             } else if (currentTool === 'wall') {
-                drawingWallStart = { x: snapCoord(world.x), y: snapCoord(world.y) };
+                const pt = getSnappedPoint(world.x, world.y);
+                drawingWallStart = { x: pt.x, y: pt.y };
             } else if (currentTool === 'measure') {
                 measuringStart = { x: world.x, y: world.y };
                 measuringEnd = { x: world.x, y: world.y };
@@ -630,7 +633,8 @@
             const sy = e.clientY - rect.top;
             const world = screenToWorld(sx, sy);
             
-            currentMouseWorld = { x: snapCoord(world.x), y: snapCoord(world.y) };
+            const pt = getSnappedPoint(world.x, world.y);
+            currentMouseWorld = { x: pt.x, y: pt.y };
             document.getElementById('coord-display').innerText = `X: ${Math.round(world.x)}, Y: ${Math.round(world.y)}`;
 
             if (isDraggingCanvas) {
@@ -642,10 +646,8 @@
             if (draggingWallHandle) {
                 const w = project.walls.find(item => item.id === draggingWallHandle.wallId);
                 if (w) {
-                    const nx = snapCoord(world.x);
-                    const ny = snapCoord(world.y);
-                    if (draggingWallHandle.handle === 'p1') { w.x1 = nx; w.y1 = ny; }
-                    else if (draggingWallHandle.handle === 'p2') { w.x2 = nx; w.y2 = ny; }
+                    if (draggingWallHandle.handle === 'p1') { w.x1 = pt.x; w.y1 = pt.y; }
+                    else if (draggingWallHandle.handle === 'p2') { w.x2 = pt.x; w.y2 = pt.y; }
                     saveAndSync();
                 }
                 return;
@@ -664,12 +666,10 @@
                 return;
             }
             if (currentTool === 'wall' && drawingWallStart) {
-                const rect = canvas2D.getBoundingClientRect();
-                const world = screenToWorld(e.clientX - rect.left, e.clientY - rect.top);
-                const endX = snapCoord(world.x);
-                const endY = snapCoord(world.y);
+                const endX = currentMouseWorld.x;
+                const endY = currentMouseWorld.y;
                 
-                if (Math.hypot(endX - drawingWallStart.x, endY - drawingWallStart.y) > 20) {
+                if (Math.hypot(endX - drawingWallStart.x, endY - drawingWallStart.y) > 15) {
                     project.walls.push({
                         id: 'wall_' + Date.now(),
                         x1: drawingWallStart.x,
@@ -680,7 +680,7 @@
                         height: wallHeightDefault
                     });
                     saveAndSync();
-                    showToast('Parede criada!');
+                    showToast('Parede criada e encaixada!');
                 }
                 drawingWallStart = null;
             }
@@ -892,7 +892,6 @@
         function draw2D() {
             ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
 
-            // Grade
             ctx2D.strokeStyle = '#e2e8f0';
             ctx2D.lineWidth = 1;
             const gridPx = 50 * (scale2D * 0.5);
@@ -902,7 +901,6 @@
             for (let y = startY; y < canvas2D.height; y += gridPx) { ctx2D.moveTo(0, y); ctx2D.lineTo(canvas2D.width, y); }
             ctx2D.stroke();
 
-            // Paredes
             for (let w of project.walls) {
                 const p1 = worldToScreen(w.x1, w.y1), p2 = worldToScreen(w.x2, w.y2);
                 ctx2D.strokeStyle = selectedItem && selectedItem.id === w.id ? '#6366f1' : '#64748b';
@@ -918,7 +916,6 @@
                 }
             }
 
-            // Portas
             for (let d of project.doors) {
                 const w = project.walls.find(item => item.id === d.wallId);
                 if (!w) continue;
@@ -930,7 +927,6 @@
                 ctx2D.beginPath(); ctx2D.arc(pt.x, pt.y, selectedItem && selectedItem.id === d.id ? 10 : 8, 0, Math.PI * 2); ctx2D.fill(); ctx2D.stroke();
             }
 
-            // Janelas
             for (let win of project.windows) {
                 const w = project.walls.find(item => item.id === win.wallId);
                 if (!w) continue;
@@ -943,7 +939,6 @@
                 ctx2D.strokeRect(pt.x - 7, pt.y - 7, 14, 14);
             }
 
-            // Móveis
             for (let f of project.furniture) {
                 const pt = worldToScreen(f.x, f.y);
                 ctx2D.save();
@@ -979,7 +974,7 @@
             }
         }
 
-        // --- Three.js 3D Engine ---
+        // --- Three.js 3D Engine com Telhados Automatizados ---
         function init3DIfNeeded() {
             if (is3DInitialized) { update3DScene(); return; }
 
@@ -1071,8 +1066,8 @@
 
             const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7, metalness: 0.05 });
             const floorMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.5, metalness: 0.1 });
+            const roofTileMat = new THREE.MeshStandardMaterial({ color: 0x993d28, roughness: 0.6 }); // Telha Cerâmica
 
-            // Paredes e Vãos Livres (Portas Vazadas) gerados através de cortes/segmentos
             project.walls.forEach(w => {
                 const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
                 const length = Math.hypot(dx, dy);
@@ -1080,13 +1075,8 @@
                 const angle = Math.atan2(dy, dx);
                 const height = w.height || 280, thickness = w.thickness || 20;
 
-                // Filtrar portas vazadas (isHollow) nesta parede para criar vãos divididos
                 const wallDoors = project.doors.filter(d => d.wallId === w.id && d.isHollow)
-                    .map(d => ({
-                        offset: d.offset,
-                        width: d.width || 90,
-                        height: d.height || 210
-                    }))
+                    .map(d => ({ offset: d.offset, width: d.width || 90, height: d.height || 210 }))
                     .sort((a, b) => a.offset - b.offset);
 
                 if (wallDoors.length === 0) {
@@ -1096,17 +1086,15 @@
                     mesh.rotation.y = -angle;
                     houseGroup3D.add(mesh);
                 } else {
-                    // Montar segmentos da parede divididos pelos vãos livres
                     let currentOffset = 0;
                     wallDoors.forEach(d => {
                         const doorCenterDist = d.offset * length;
                         const segLen = doorCenterDist - (d.width / 2) - currentOffset;
                         if (segLen > 1) {
                             const segCenter = currentOffset + segLen / 2;
-                            const localX = segCenter - length / 2;
                             const mesh = new THREE.Mesh(new THREE.BoxGeometry(segLen, height, thickness), wallMat);
                             mesh.castShadow = true; mesh.receiveShadow = true;
-                            mesh.position.set(localX, height / 2, 0);
+                            mesh.position.set(segCenter - length / 2, height / 2, 0);
                             
                             const groupSeg = new THREE.Group();
                             groupSeg.add(mesh);
@@ -1115,7 +1103,6 @@
                             houseGroup3D.add(groupSeg);
                         }
 
-                        // Lado superior do vão (vergalhão acima da porta vazada)
                         const topH = height - d.height;
                         if (topH > 0) {
                             const topMesh = new THREE.Mesh(new THREE.BoxGeometry(d.width, topH, thickness), wallMat);
@@ -1128,17 +1115,15 @@
                             groupTop.rotation.y = -angle;
                             houseGroup3D.add(groupTop);
                         }
-
                         currentOffset = doorCenterDist + (d.width / 2);
                     });
 
                     const finalSegLen = length - currentOffset;
                     if (finalSegLen > 1) {
                         const segCenter = currentOffset + finalSegLen / 2;
-                        const localX = segCenter - length / 2;
                         const mesh = new THREE.Mesh(new THREE.BoxGeometry(finalSegLen, height, thickness), wallMat);
                         mesh.castShadow = true; mesh.receiveShadow = true;
-                        mesh.position.set(localX, height / 2, 0);
+                        mesh.position.set(segCenter - length / 2, height / 2, 0);
                         
                         const groupFinal = new THREE.Group();
                         groupFinal.add(mesh);
@@ -1149,12 +1134,11 @@
                 }
             });
 
-            // Portas Comuns (Não vazadas)
+            // Portas e Janelas
             const doorMat = new THREE.MeshStandardMaterial({ color: 0x0891b2, roughness: 0.4 });
             project.doors.forEach(d => {
                 const w = project.walls.find(item => item.id === d.wallId);
-                if (!w) return;
-                if (d.isHollow) return; // Ignora portas vazadas na folha sólida
+                if (!w || d.isHollow) return;
                 const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
                 const angle = Math.atan2(dy, dx);
                 const pos = { x: w.x1 + dx * d.offset, y: w.y1 + dy * d.offset };
@@ -1165,7 +1149,6 @@
                 houseGroup3D.add(mesh);
             });
 
-            // Janelas
             const winMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.4, roughness: 0.1 });
             project.windows.forEach(win => {
                 const w = project.walls.find(item => item.id === win.wallId);
@@ -1180,7 +1163,6 @@
                 houseGroup3D.add(mesh);
             });
 
-            // Piso e Teto
             let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
             let hasElements = project.walls.length > 0 || project.furniture.length > 0;
 
@@ -1214,10 +1196,38 @@
                     roofMesh.position.set(cx, 280, cz);
                     roofMesh.receiveShadow = true;
                     houseGroup3D.add(roofMesh);
+                } else if (roofMode === 'gable') {
+                    // Exemplo de Telhado Duas Águas (Gable Roof)
+                    const roofGroup = new THREE.Group();
+                    const roofW = width + 60, roofL = depth + 60;
+                    const peakHeight = 100;
+                    
+                    const slopeGeo = new THREE.BoxGeometry(roofW, 10, Math.hypot(roofL/2, peakHeight));
+                    const leftSlope = new THREE.Mesh(slopeGeo, roofTileMat);
+                    leftSlope.position.set(0, 280 + peakHeight/2, -roofL/4);
+                    leftSlope.rotation.x = Math.atan2(peakHeight, roofL/2);
+                    leftSlope.castShadow = true;
+                    roofGroup.add(leftSlope);
+
+                    const rightSlope = new THREE.Mesh(slopeGeo, roofTileMat);
+                    rightSlope.position.set(0, 280 + peakHeight/2, roofL/4);
+                    rightSlope.rotation.x = -Math.atan2(peakHeight, roofL/2);
+                    rightSlope.castShadow = true;
+                    roofGroup.add(rightSlope);
+
+                    roofGroup.position.set(cx, 0, cz);
+                    houseGroup3D.add(roofGroup);
+                } else if (roofMode === 'shed') {
+                    // Exemplo de Telhado Uma Água (Shed Roof)
+                    const shedGeo = new THREE.BoxGeometry(width + 60, 10, depth + 60);
+                    const shedMesh = new THREE.Mesh(shedGeo, roofTileMat);
+                    shedMesh.position.set(cx, 280 + 50, cz);
+                    shedMesh.rotation.x = 0.15; // Leve inclinação
+                    shedMesh.castShadow = true;
+                    houseGroup3D.add(shedMesh);
                 }
             }
 
-            // Móveis
             project.furniture.forEach(f => {
                 const group = new THREE.Group();
                 let color = 0x818cf8;
