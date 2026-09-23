@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ArquiStudio Pro - Planta Baixa 2D & 3D Interativo</title>
+    <title>ArquiStudio Pro - Planta Baixa 2D & 3D (Sobrado)</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -40,18 +40,30 @@
 </head>
 <body class="h-full bg-slate-50 text-slate-800 flex flex-col overflow-hidden">
 
-    <!-- Header / Navbar -->
-    <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-sm z-30">
+    <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shrink-0 shadow-sm z-30 flex-wrap gap-2">
         <div class="flex items-center space-x-3">
             <div class="bg-indigo-600 text-white p-2 rounded-xl flex items-center justify-center shadow-md shadow-indigo-500/20">
                 <i data-lucide="home" class="w-5 h-5"></i>
             </div>
             <div>
                 <h1 class="font-bold text-sm md:text-base tracking-tight flex items-center gap-2 text-slate-900">
-                    ArquiStudio Pro <span class="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-200 font-medium">Vãos & Tetos Pro</span>
+                    ArquiStudio Pro <span class="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-200 font-medium">Sobrado & Vãos</span>
                 </h1>
                 <p class="text-xs text-slate-500" id="project-title-display">Projeto sem título</p>
             </div>
+        </div>
+
+        <!-- Seletor de Andar Ativo (Desenho) -->
+        <div class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-inner gap-1">
+            <span class="text-[11px] font-semibold text-slate-500 px-2 uppercase tracking-wider">Desenhar no:</span>
+            <label class="cursor-pointer px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5" id="label-floor-baixo">
+                <input type="radio" name="activeFloor" value="baixo" checked onchange="setActiveFloor('baixo')" class="sr-only">
+                <i data-lucide="square" class="w-3.5 h-3.5"></i> Térreo (Baixo)
+            </label>
+            <label class="cursor-pointer px-3 py-1 rounded-lg text-xs font-medium transition flex items-center gap-1.5" id="label-floor-cima">
+                <input type="radio" name="activeFloor" value="cima" onchange="setActiveFloor('cima')" class="sr-only">
+                <i data-lucide="layers" class="w-3.5 h-3.5"></i> Superior (Cima)
+            </label>
         </div>
 
         <!-- Mode Switcher -->
@@ -91,6 +103,23 @@
             </div>
             
             <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                <!-- Controle de Visualização de Andares (Checkboxes) -->
+                <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2.5 shadow-sm">
+                    <h3 class="text-xs font-bold tracking-wider text-slate-700 uppercase flex items-center gap-1.5">
+                        <i data-lucide="eye" class="w-3.5 h-3.5 text-indigo-600"></i> Visualização de Andares
+                    </h3>
+                    <div class="space-y-2 text-xs text-slate-700">
+                        <label class="flex items-center gap-2 cursor-pointer hover:text-indigo-600">
+                            <input type="checkbox" id="chk-vis-baixo" checked onchange="updateVisibilityFilters()" class="rounded bg-white border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span>Exibir Térreo (Parte de Baixo)</span>
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer hover:text-indigo-600">
+                            <input type="checkbox" id="chk-vis-cima" checked onchange="updateVisibilityFilters()" class="rounded bg-white border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4">
+                            <span>Exibir Superior (Parte de Cima)</span>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Drawing Tools -->
                 <div class="grid grid-cols-2 gap-2">
                     <button onclick="setTool('select')" id="tool-select" class="tool-btn p-3 rounded-xl border border-indigo-500 bg-indigo-50 text-indigo-700 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium">
@@ -178,11 +207,10 @@
 
             <div class="p-3 bg-slate-100 border-t border-slate-200 text-[11px] text-slate-600 flex items-center gap-2">
                 <i data-lucide="info" class="w-4 h-4 text-indigo-600 shrink-0"></i>
-                <span id="instruction-tip">Paredes próximas agora se conectam automaticamente nas quinas.</span>
+                <span id="instruction-tip">Você está desenhando no andar selecionado acima.</span>
             </div>
         </aside>
 
-        <!-- Main Viewports Container -->
         <main class="flex-1 relative bg-white overflow-hidden flex flex-row" id="main-viewport-container">
             
             <!-- 2D Editor Viewport -->
@@ -232,7 +260,7 @@
                         <input type="range" id="sun-time" min="6" max="19" step="0.5" value="12" class="w-full accent-indigo-500 cursor-pointer" oninput="updateLighting()">
                     </div>
 
-                    <!-- Seletor de Telhados Prontos (5 Exemplos) -->
+                    <!-- Seletor de Telhados Prontos -->
                     <div class="space-y-1.5 border-t border-slate-800 pt-3">
                         <div class="flex justify-between text-slate-300 font-semibold">
                             <span class="flex items-center gap-1.5"><i data-lucide="home" class="w-4 h-4 text-amber-500"></i> Modelo de Teto / Cobertura</span>
@@ -245,7 +273,7 @@
                             <option value="shed">5. Telhado Uma Água (Shed / Rampa)</option>
                             <option value="mansard">6. Telhado Mansarda (Gambrel)</option>
                         </select>
-                        <p class="text-[10px] text-slate-400">Escolha entre 5 modelos prontos adaptados automaticamente ao perímetro da planta.</p>
+                        <p class="text-[10px] text-slate-400">Adaptado ao perímetro superior do sobrado.</p>
                     </div>
                 </div>
 
@@ -272,7 +300,7 @@
             <div class="p-6 space-y-4">
                 <div>
                     <label class="block text-xs font-medium text-slate-600 mb-1.5">Nome do Projeto</label>
-                    <input type="text" id="project-name-input" value="Minha Casa" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-500 transition">
+                    <input type="text" id="project-name-input" value="Meu Sobrado" class="w-full bg-slate-50 border border-slate-300 rounded-2xl px-4 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-indigo-500 transition">
                 </div>
 
                 <div class="space-y-2.5 pt-2">
@@ -305,13 +333,16 @@
         let wallThicknessDefault = 20;
         let wallHeightDefault = 280;
         let currentUnit = 'm';
+        let activeFloor = 'baixo'; // 'baixo' (térreo) ou 'cima' (superior)
+        let showFloorBaixo = true;
+        let showFloorCima = true;
 
         let project = {
-            name: "Projeto sem título",
-            walls: [],    
-            doors: [],    
-            windows: [],  
-            furniture: [] 
+            name: "Meu Sobrado",
+            walls: [],    // { id, x1, y1, x2, y2, thickness, height, floor }
+            doors: [],    // { id, wallId, offset, width, height, isHollow, floor }
+            windows: [],  // { id, wallId, offset, width, height, sillHeight, floor }
+            furniture: [] // { id, type, name, x, y, rotation, width, depth, height, floor }
         };
 
         function formatUnit(valCm) {
@@ -351,6 +382,7 @@
         window.addEventListener('load', () => {
             if (typeof lucide !== 'undefined') lucide.createIcons();
             init2DCanvas();
+            updateActiveFloorUI();
             updatePropertiesPanel();
             initSplitResizer();
 
@@ -377,6 +409,34 @@
                 showToast(`Unidade alterada para ${currentUnit === 'm' ? 'Metros (m)' : 'Centímetros (cm)'}`);
             });
         });
+
+        function setActiveFloor(floor) {
+            activeFloor = floor;
+            updateActiveFloorUI();
+            showToast(`Andar ativo alterado para: ${floor === 'baixo' ? 'Térreo (Baixo)' : 'Superior (Cima)'}`);
+        }
+
+        function updateActiveFloorUI() {
+            const lblBaixo = document.getElementById('label-floor-baixo');
+            const lblCima = document.getElementById('label-floor-cima');
+            
+            const activeStyle = "cursor-pointer px-3 py-1 rounded-lg text-xs font-semibold bg-indigo-600 text-white shadow flex items-center gap-1.5 transition";
+            const inactiveStyle = "cursor-pointer px-3 py-1 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition";
+
+            if (activeFloor === 'baixo') {
+                lblBaixo.className = activeStyle;
+                lblCima.className = inactiveStyle;
+            } else {
+                lblBaixo.className = inactiveStyle;
+                lblCima.className = activeStyle;
+            }
+        }
+
+        function updateVisibilityFilters() {
+            showFloorBaixo = document.getElementById('chk-vis-baixo').checked;
+            showFloorCima = document.getElementById('chk-vis-cima').checked;
+            if (is3DInitialized) update3DScene();
+        }
 
         function initSplitResizer() {
             const resizer = document.getElementById('resizer-split');
@@ -559,7 +619,8 @@
             let snappedX = snapCoord(x);
             let snappedY = snapCoord(y);
 
-            for (let w of project.walls) {
+            // Snapping apenas nas paredes do mesmo andar ativo para facilitar o desenho
+            for (let w of project.walls.filter(item => item.floor === activeFloor)) {
                 if (Math.hypot(w.x1 - snappedX, w.y1 - snappedY) < threshold) {
                     snappedX = w.x1;
                     snappedY = w.y1;
@@ -615,15 +676,15 @@
                 if (wall) {
                     const offset = getWallOffset(wall, world.x, world.y);
                     if (currentTool === 'door') {
-                        project.doors.push({ id: 'door_' + Date.now(), wallId: wall.id, offset, width: 90, height: 210, isHollow: false });
-                        showToast('Porta adicionada!');
+                        project.doors.push({ id: 'door_' + Date.now(), wallId: wall.id, offset, width: 90, height: 210, isHollow: false, floor: wall.floor });
+                        showToast(`Porta adicionada no andar ${wall.floor === 'baixo' ? 'Térreo' : 'Superior'}!`);
                     } else {
-                        project.windows.push({ id: 'win_' + Date.now(), wallId: wall.id, offset, width: 120, height: 120, sillHeight: 90 });
-                        showToast('Janela adicionada!');
+                        project.windows.push({ id: 'win_' + Date.now(), wallId: wall.id, offset, width: 120, height: 120, sillHeight: 90, floor: wall.floor });
+                        showToast(`Janela adicionada no andar ${wall.floor === 'baixo' ? 'Térreo' : 'Superior'}!`);
                     }
                     saveAndSync();
                 } else {
-                    showToast('Clique próximo a uma parede.', 'error');
+                    showToast('Clique próximo a uma parede do andar visível.', 'error');
                 }
             }
         }
@@ -678,10 +739,11 @@
                         x2: endX,
                         y2: endY,
                         thickness: wallThicknessDefault,
-                        height: wallHeightDefault
+                        height: wallHeightDefault,
+                        floor: activeFloor
                     });
                     saveAndSync();
-                    showToast('Parede criada e encaixada!');
+                    showToast(`Parede criada no andar ${activeFloor === 'baixo' ? 'Térreo' : 'Superior'}!`);
                 }
                 drawingWallStart = null;
             }
@@ -696,22 +758,27 @@
         }
 
         function hitTest2D(x, y) {
+            // Filtrar apenas itens visíveis conforme as checkboxes
             for (let f of project.furniture) {
+                if ((f.floor === 'baixo' && !showFloorBaixo) || (f.floor === 'cima' && !showFloorCima)) continue;
                 if (Math.hypot(f.x - x, f.y - y) < 55) return { type: 'furniture', id: f.id };
             }
             for (let d of project.doors) {
+                if ((d.floor === 'baixo' && !showFloorBaixo) || (d.floor === 'cima' && !showFloorCima)) continue;
                 const w = project.walls.find(item => item.id === d.wallId);
                 if (!w) continue;
                 const pos = { x: w.x1 + (w.x2 - w.x1) * d.offset, y: w.y1 + (w.y2 - w.y1) * d.offset };
                 if (Math.hypot(pos.x - x, pos.y - y) < 35) return { type: 'door', id: d.id };
             }
             for (let win of project.windows) {
+                if ((win.floor === 'baixo' && !showFloorBaixo) || (win.floor === 'cima' && !showFloorCima)) continue;
                 const w = project.walls.find(item => item.id === win.wallId);
                 if (!w) continue;
                 const pos = { x: w.x1 + (w.x2 - w.x1) * win.offset, y: w.y1 + (w.y2 - w.y1) * win.offset };
                 if (Math.hypot(pos.x - x, pos.y - y) < 35) return { type: 'window', id: win.id };
             }
             for (let w of project.walls) {
+                if ((w.floor === 'baixo' && !showFloorBaixo) || (w.floor === 'cima' && !showFloorCima)) continue;
                 if (distToSegment({ x, y }, { x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 }) < (w.thickness / 2 + 12)) {
                     return { type: 'wall', id: w.id };
                 }
@@ -730,6 +797,8 @@
         function findClosestWall(x, y) {
             let closest = null, minDist = Infinity;
             for (let w of project.walls) {
+                if ((w.floor === 'baixo' && !showFloorBaixo) || (w.floor === 'cima' && !showFloorCima)) continue;
+                // Permitir apenas colar na parede do mesmo andar ativo ou de andares visíveis
                 const d = distToSegment({ x, y }, { x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 });
                 if (d < minDist) { minDist = d; closest = w; }
             }
@@ -753,9 +822,9 @@
                 toilet: { name: 'Vaso Sanitário', w: 50, d: 70, h: 80 }
             };
             const def = catalog[type] || { name: 'Móvel', w: 100, d: 100, h: 75 };
-            project.furniture.push({ id: 'furn_' + Date.now(), type, name: def.name, x: 0, y: 0, rotation: 0, width: def.w, depth: def.d, height: def.h });
+            project.furniture.push({ id: 'furn_' + Date.now(), type, name: def.name, x: 0, y: 0, rotation: 0, width: def.w, depth: def.d, height: def.h, floor: activeFloor });
             saveAndSync();
-            showToast(`${def.name} adicionado!`);
+            showToast(`${def.name} adicionado no andar ${activeFloor === 'baixo' ? 'Térreo' : 'Superior'}!`);
             selectedItem = { type: 'furniture', id: project.furniture[project.furniture.length - 1].id };
             updatePropertiesPanel();
         }
@@ -775,7 +844,10 @@
                 const displayW = currentUnit === 'm' ? (f.width / 100).toFixed(2) : Math.round(f.width);
                 const displayD = currentUnit === 'm' ? (f.depth / 100).toFixed(2) : Math.round(f.depth);
                 content.innerHTML = `
-                    <div class="font-semibold text-slate-800">${f.name}</div>
+                    <div class="font-semibold text-slate-800 flex justify-between items-center">
+                        <span>${f.name}</span>
+                        <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">Andar: ${f.floor === 'baixo' ? 'Térreo' : 'Superior'}</span>
+                    </div>
                     <div class="space-y-2.5">
                         <div><label class="text-slate-500">Rotação (${f.rotation || 0}°)</label>
                         <input type="range" min="0" max="360" step="15" value="${f.rotation || 0}" oninput="updateItemProp('furniture', '${f.id}', 'rotation', this.value)" class="w-full accent-indigo-600 cursor-pointer"></div>
@@ -792,7 +864,10 @@
                 const displayLen = currentUnit === 'm' ? (len / 100).toFixed(2) : Math.round(len);
                 const displayH = currentUnit === 'm' ? ((w.height || 280) / 100).toFixed(2) : (w.height || 280);
                 content.innerHTML = `
-                    <div class="font-semibold text-slate-800">Parede / Divisão</div>
+                    <div class="font-semibold text-slate-800 flex justify-between items-center">
+                        <span>Parede / Divisão</span>
+                        <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">Andar: ${w.floor === 'baixo' ? 'Térreo' : 'Superior'}</span>
+                    </div>
                     <div class="space-y-2.5">
                         <div class="text-slate-500 font-mono text-[11px]">Comprimento: ${formatUnit(len)}</div>
                         <div><label class="text-slate-500">Ajustar Comprimento (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayLen}" onchange="updateWallLengthUnit('${w.id}', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-700"></div>
@@ -811,13 +886,16 @@
                 const displayW = currentUnit === 'm' ? ((d.width || 90) / 100).toFixed(2) : (d.width || 90);
                 const displayH = currentUnit === 'm' ? ((d.height || 210) / 100).toFixed(2) : (d.height || 210);
                 content.innerHTML = `
-                    <div class="font-semibold text-slate-800">Porta Selecionada</div>
+                    <div class="font-semibold text-slate-800 flex justify-between items-center">
+                        <span>Porta Selecionada</span>
+                        <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">Andar: ${d.floor === 'baixo' ? 'Térreo' : 'Superior'}</span>
+                    </div>
                     <div class="space-y-2.5">
                         <div class="flex items-center justify-between">
                             <span class="text-slate-600">Porta Vazada (Vão Livre)</span>
                             <input type="checkbox" ${d.isHollow ? 'checked' : ''} onchange="updateItemProp('door', '${d.id}', 'isHollow', this.checked)" class="rounded bg-white border-slate-300 text-indigo-600 w-4 h-4 cursor-pointer">
                         </div>
-                        <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('door', '${d.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
+                        <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('door', '${d.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-700"></div>
                         <div><label class="text-slate-500">Altura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayH}" onchange="updateItemPropUnit('door', '${d.id}', 'height', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                     </div>
                 `;
@@ -828,7 +906,10 @@
                 const displayH = currentUnit === 'm' ? ((win.height || 120) / 100).toFixed(2) : (win.height || 120);
                 const displaySill = currentUnit === 'm' ? ((win.sillHeight || 90) / 100).toFixed(2) : (win.sillHeight || 90);
                 content.innerHTML = `
-                    <div class="font-semibold text-slate-800">Janela Selecionada</div>
+                    <div class="font-semibold text-slate-800 flex justify-between items-center">
+                        <span>Janela Selecionada</span>
+                        <span class="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full font-medium">Andar: ${win.floor === 'baixo' ? 'Térreo' : 'Superior'}</span>
+                    </div>
                     <div class="space-y-2.5">
                         <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('window', '${win.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                         <div><label class="text-slate-500">Altura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayH}" onchange="updateItemPropUnit('window', '${win.id}', 'height', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
@@ -893,6 +974,7 @@
         function draw2D() {
             ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
 
+            // Grade de fundo
             ctx2D.strokeStyle = '#e2e8f0';
             ctx2D.lineWidth = 1;
             const gridPx = 50 * (scale2D * 0.5);
@@ -902,9 +984,16 @@
             for (let y = startY; y < canvas2D.height; y += gridPx) { ctx2D.moveTo(0, y); ctx2D.lineTo(canvas2D.width, y); }
             ctx2D.stroke();
 
+            // Renderizar Paredes com cores distintas para diferenciar Térreo vs Superior (se ambos visíveis)
             for (let w of project.walls) {
+                if ((w.floor === 'baixo' && !showFloorBaixo) || (w.floor === 'cima' && !showFloorCima)) continue;
                 const p1 = worldToScreen(w.x1, w.y1), p2 = worldToScreen(w.x2, w.y2);
-                ctx2D.strokeStyle = selectedItem && selectedItem.id === w.id ? '#6366f1' : '#64748b';
+                
+                let strokeColor = '#64748b'; // Padrão
+                if (showFloorBaixo && showFloorCima) {
+                    strokeColor = w.floor === 'cima' ? '#8b5cf6' : '#64748b'; // Roxo para cima, Cinza para baixo
+                }
+                ctx2D.strokeStyle = selectedItem && selectedItem.id === w.id ? '#6366f1' : strokeColor;
                 ctx2D.lineWidth = (w.thickness || 20) * (scale2D * 0.5);
                 ctx2D.lineCap = 'round';
                 ctx2D.beginPath(); ctx2D.moveTo(p1.x, p1.y); ctx2D.lineTo(p2.x, p2.y); ctx2D.stroke();
@@ -917,7 +1006,9 @@
                 }
             }
 
+            // Portas
             for (let d of project.doors) {
+                if ((d.floor === 'baixo' && !showFloorBaixo) || (d.floor === 'cima' && !showFloorCima)) continue;
                 const w = project.walls.find(item => item.id === d.wallId);
                 if (!w) continue;
                 const pos = { x: w.x1 + (w.x2 - w.x1) * d.offset, y: w.y1 + (w.y2 - w.y1) * d.offset };
@@ -928,7 +1019,9 @@
                 ctx2D.beginPath(); ctx2D.arc(pt.x, pt.y, selectedItem && selectedItem.id === d.id ? 10 : 8, 0, Math.PI * 2); ctx2D.fill(); ctx2D.stroke();
             }
 
+            // Janelas
             for (let win of project.windows) {
+                if ((win.floor === 'baixo' && !showFloorBaixo) || (win.floor === 'cima' && !showFloorCima)) continue;
                 const w = project.walls.find(item => item.id === win.wallId);
                 if (!w) continue;
                 const pos = { x: w.x1 + (w.x2 - w.x1) * win.offset, y: w.y1 + (w.y2 - w.y1) * win.offset };
@@ -940,7 +1033,9 @@
                 ctx2D.strokeRect(pt.x - 7, pt.y - 7, 14, 14);
             }
 
+            // Móveis
             for (let f of project.furniture) {
+                if ((f.floor === 'baixo' && !showFloorBaixo) || (f.floor === 'cima' && !showFloorCima)) continue;
                 const pt = worldToScreen(f.x, f.y);
                 ctx2D.save();
                 ctx2D.translate(pt.x, pt.y);
@@ -952,18 +1047,20 @@
                 ctx2D.fillRect(-wPx/2, -dPx/2, wPx, dPx);
                 ctx2D.strokeRect(-wPx/2, -dPx/2, wPx, dPx);
                 ctx2D.fillStyle = '#334155'; ctx2D.font = '10px Inter'; ctx2D.textAlign = 'center';
-                ctx2D.fillText(f.name, 0, 4);
+                ctx2D.fillText(f.name + (showFloorBaixo && showFloorCima ? ` (${f.floor === 'baixo' ? 'T' : 'S'})` : ''), 0, 4);
                 ctx2D.restore();
             }
 
+            // Linha de desenho da parede no andar ativo
             if (currentTool === 'wall' && drawingWallStart) {
                 const p1 = worldToScreen(drawingWallStart.x, drawingWallStart.y);
                 const p2 = worldToScreen(currentMouseWorld.x, currentMouseWorld.y);
-                ctx2D.strokeStyle = 'rgba(99, 102, 241, 0.7)';
+                ctx2D.strokeStyle = activeFloor === 'baixo' ? 'rgba(99, 102, 241, 0.7)' : 'rgba(139, 92, 246, 0.7)';
                 ctx2D.lineWidth = wallThicknessDefault * (scale2D * 0.5);
                 ctx2D.beginPath(); ctx2D.moveTo(p1.x, p1.y); ctx2D.lineTo(p2.x, p2.y); ctx2D.stroke();
             }
 
+            // Ferramenta de Medição
             if (currentTool === 'measure' && measuringStart && measuringEnd) {
                 const p1 = worldToScreen(measuringStart.x, measuringStart.y);
                 const p2 = worldToScreen(measuringEnd.x, measuringEnd.y);
@@ -975,7 +1072,7 @@
             }
         }
 
-        // --- Three.js 3D Engine com os 5 Exemplos de Tetos Prontos ---
+        // --- Three.js 3D Engine com suporte a Pavimentos (Sobrado) ---
         function init3DIfNeeded() {
             if (is3DInitialized) { update3DScene(); return; }
 
@@ -985,7 +1082,7 @@
             scene3D.fog = new THREE.FogExp2(0x090d16, 0.0008);
 
             camera3D = new THREE.PerspectiveCamera(55, host.clientWidth / host.clientHeight, 0.1, 10000);
-            camera3D.position.set(0, 500, 700);
+            camera3D.position.set(0, 600, 900);
 
             renderer3D = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
             renderer3D.setSize(host.clientWidth, host.clientHeight);
@@ -1065,102 +1162,184 @@
             if (houseGroup3D) scene3D.remove(houseGroup3D);
             houseGroup3D = new THREE.Group();
 
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7, metalness: 0.05 });
+            const wallMatBaixo = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7, metalness: 0.05 });
+            const wallMatCima = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.7, metalness: 0.05 }); // Tom ligeiramente diferente para andar superior
             const floorMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.5, metalness: 0.1 });
+            const slabMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.6 }); // Laje intermediária
             const roofTileMat = new THREE.MeshStandardMaterial({ color: 0x993d28, roughness: 0.6 }); // Telha Cerâmica
-            const concreteRoofMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.6 }); // Concreto/Laje
+            const concreteRoofMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.6 });
 
-            project.walls.forEach(w => {
-                const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
-                const length = Math.hypot(dx, dy);
-                if (length === 0) return;
-                const angle = Math.atan2(dy, dx);
-                const height = w.height || 280, thickness = w.thickness || 20;
+            // Altura padrão do térreo para elevação do andar superior
+            const standardGroundWallH = 280; 
 
-                const wallDoors = project.doors.filter(d => d.wallId === w.id && d.isHollow)
-                    .map(d => ({ offset: d.offset, width: d.width || 90, height: d.height || 210 }))
-                    .sort((a, b) => a.offset - b.offset);
+            // --- 1. RENDERIZAR PAREDES (BAIXO) ---
+            if (showFloorBaixo) {
+                project.walls.filter(w => w.floor === 'baixo').forEach(w => {
+                    const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
+                    const length = Math.hypot(dx, dy);
+                    if (length === 0) return;
+                    const angle = Math.atan2(dy, dx);
+                    const height = w.height || 280, thickness = w.thickness || 20;
 
-                if (wallDoors.length === 0) {
-                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(length, height, thickness), wallMat);
-                    mesh.castShadow = true; mesh.receiveShadow = true;
-                    mesh.position.set((w.x1 + w.x2) / 2, height / 2, (w.y1 + w.y2) / 2);
-                    mesh.rotation.y = -angle;
-                    houseGroup3D.add(mesh);
-                } else {
-                    let currentOffset = 0;
-                    wallDoors.forEach(d => {
-                        const doorCenterDist = d.offset * length;
-                        const segLen = doorCenterDist - (d.width / 2) - currentOffset;
-                        if (segLen > 1) {
-                            const segCenter = currentOffset + segLen / 2;
-                            const mesh = new THREE.Mesh(new THREE.BoxGeometry(segLen, height, thickness), wallMat);
+                    const wallDoors = project.doors.filter(d => d.wallId === w.id && d.isHollow)
+                        .map(d => ({ offset: d.offset, width: d.width || 90, height: d.height || 210 }))
+                        .sort((a, b) => a.offset - b.offset);
+
+                    if (wallDoors.length === 0) {
+                        const mesh = new THREE.Mesh(new THREE.BoxGeometry(length, height, thickness), wallMatBaixo);
+                        mesh.castShadow = true; mesh.receiveShadow = true;
+                        mesh.position.set((w.x1 + w.x2) / 2, height / 2, (w.y1 + w.y2) / 2);
+                        mesh.rotation.y = -angle;
+                        houseGroup3D.add(mesh);
+                    } else {
+                        let currentOffset = 0;
+                        wallDoors.forEach(d => {
+                            const doorCenterDist = d.offset * length;
+                            const segLen = doorCenterDist - (d.width / 2) - currentOffset;
+                            if (segLen > 1) {
+                                const segCenter = currentOffset + segLen / 2;
+                                const mesh = new THREE.Mesh(new THREE.BoxGeometry(segLen, height, thickness), wallMatBaixo);
+                                mesh.castShadow = true; mesh.receiveShadow = true;
+                                mesh.position.set(segCenter - length / 2, height / 2, 0);
+                                
+                                const groupSeg = new THREE.Group();
+                                groupSeg.add(mesh);
+                                groupSeg.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
+                                groupSeg.rotation.y = -angle;
+                                houseGroup3D.add(groupSeg);
+                            }
+
+                            const topH = height - d.height;
+                            if (topH > 0) {
+                                const topMesh = new THREE.Mesh(new THREE.BoxGeometry(d.width, topH, thickness), wallMatBaixo);
+                                topMesh.castShadow = true; topMesh.receiveShadow = true;
+                                topMesh.position.set(doorCenterDist - length / 2, d.height + topH / 2, 0);
+                                
+                                const groupTop = new THREE.Group();
+                                groupTop.add(topMesh);
+                                groupTop.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
+                                groupTop.rotation.y = -angle;
+                                houseGroup3D.add(groupTop);
+                            }
+                            currentOffset = doorCenterDist + (d.width / 2);
+                        });
+
+                        const finalSegLen = length - currentOffset;
+                        if (finalSegLen > 1) {
+                            const segCenter = currentOffset + finalSegLen / 2;
+                            const mesh = new THREE.Mesh(new THREE.BoxGeometry(finalSegLen, height, thickness), wallMatBaixo);
                             mesh.castShadow = true; mesh.receiveShadow = true;
                             mesh.position.set(segCenter - length / 2, height / 2, 0);
                             
-                            const groupSeg = new THREE.Group();
-                            groupSeg.add(mesh);
-                            groupSeg.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
-                            groupSeg.rotation.y = -angle;
-                            houseGroup3D.add(groupSeg);
+                            const groupFinal = new THREE.Group();
+                            groupFinal.add(mesh);
+                            groupFinal.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
+                            groupFinal.rotation.y = -angle;
+                            houseGroup3D.add(groupFinal);
                         }
-
-                        const topH = height - d.height;
-                        if (topH > 0) {
-                            const topMesh = new THREE.Mesh(new THREE.BoxGeometry(d.width, topH, thickness), wallMat);
-                            topMesh.castShadow = true; topMesh.receiveShadow = true;
-                            topMesh.position.set(doorCenterDist - length / 2, d.height + topH / 2, 0);
-                            
-                            const groupTop = new THREE.Group();
-                            groupTop.add(topMesh);
-                            groupTop.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
-                            groupTop.rotation.y = -angle;
-                            houseGroup3D.add(groupTop);
-                        }
-                        currentOffset = doorCenterDist + (d.width / 2);
-                    });
-
-                    const finalSegLen = length - currentOffset;
-                    if (finalSegLen > 1) {
-                        const segCenter = currentOffset + finalSegLen / 2;
-                        const mesh = new THREE.Mesh(new THREE.BoxGeometry(finalSegLen, height, thickness), wallMat);
-                        mesh.castShadow = true; mesh.receiveShadow = true;
-                        mesh.position.set(segCenter - length / 2, height / 2, 0);
-                        
-                        const groupFinal = new THREE.Group();
-                        groupFinal.add(mesh);
-                        groupFinal.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
-                        groupFinal.rotation.y = -angle;
-                        houseGroup3D.add(groupFinal);
                     }
-                }
-            });
+                });
+            }
 
-            // Portas e Janelas
+            // --- 2. RENDERIZAR PAREDES (CIMA - SOBRADO POSICIONADO ACIMA DO TÉRREO y = wallHeight) ---
+            if (showFloorCima) {
+                project.walls.filter(w => w.floor === 'cima').forEach(w => {
+                    const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
+                    const length = Math.hypot(dx, dy);
+                    if (length === 0) return;
+                    const angle = Math.atan2(dy, dx);
+                    const height = w.height || 280, thickness = w.thickness || 20;
+                    const baseY = standardGroundWallH; // Posicionado acima da parede do térreo
+
+                    const wallDoors = project.doors.filter(d => d.wallId === w.id && d.isHollow)
+                        .map(d => ({ offset: d.offset, width: d.width || 90, height: d.height || 210 }))
+                        .sort((a, b) => a.offset - b.offset);
+
+                    if (wallDoors.length === 0) {
+                        const mesh = new THREE.Mesh(new THREE.BoxGeometry(length, height, thickness), wallMatCima);
+                        mesh.castShadow = true; mesh.receiveShadow = true;
+                        mesh.position.set((w.x1 + w.x2) / 2, baseY + height / 2, (w.y1 + w.y2) / 2);
+                        mesh.rotation.y = -angle;
+                        houseGroup3D.add(mesh);
+                    } else {
+                        let currentOffset = 0;
+                        wallDoors.forEach(d => {
+                            const doorCenterDist = d.offset * length;
+                            const segLen = doorCenterDist - (d.width / 2) - currentOffset;
+                            if (segLen > 1) {
+                                const segCenter = currentOffset + segLen / 2;
+                                const mesh = new THREE.Mesh(new THREE.BoxGeometry(segLen, height, thickness), wallMatCima);
+                                mesh.castShadow = true; mesh.receiveShadow = true;
+                                mesh.position.set(segCenter - length / 2, height / 2, 0);
+                                
+                                const groupSeg = new THREE.Group();
+                                groupSeg.add(mesh);
+                                groupSeg.position.set((w.x1 + w.x2) / 2, baseY, (w.y1 + w.y2) / 2);
+                                groupSeg.rotation.y = -angle;
+                                houseGroup3D.add(groupSeg);
+                            }
+
+                            const topH = height - d.height;
+                            if (topH > 0) {
+                                const topMesh = new THREE.Mesh(new THREE.BoxGeometry(d.width, topH, thickness), wallMatCima);
+                                topMesh.castShadow = true; topMesh.receiveShadow = true;
+                                topMesh.position.set(doorCenterDist - length / 2, d.height + topH / 2, 0);
+                                
+                                const groupTop = new THREE.Group();
+                                groupTop.add(topMesh);
+                                groupTop.position.set((w.x1 + w.x2) / 2, baseY, (w.y1 + w.y2) / 2);
+                                groupTop.rotation.y = -angle;
+                                houseGroup3D.add(groupTop);
+                            }
+                            currentOffset = doorCenterDist + (d.width / 2);
+                        });
+
+                        const finalSegLen = length - currentOffset;
+                        if (finalSegLen > 1) {
+                            const segCenter = currentOffset + finalSegLen / 2;
+                            const mesh = new THREE.Mesh(new THREE.BoxGeometry(finalSegLen, height, thickness), wallMatCima);
+                            mesh.castShadow = true; mesh.receiveShadow = true;
+                            mesh.position.set(segCenter - length / 2, height / 2, 0);
+                            
+                            const groupFinal = new THREE.Group();
+                            groupFinal.add(mesh);
+                            groupFinal.position.set((w.x1 + w.x2) / 2, baseY, (w.y1 + w.y2) / 2);
+                            groupFinal.rotation.y = -angle;
+                            houseGroup3D.add(groupFinal);
+                        }
+                    }
+                });
+            }
+
+            // Portas e Janelas (Baixo e Cima)
             const doorMat = new THREE.MeshStandardMaterial({ color: 0x0891b2, roughness: 0.4 });
             project.doors.forEach(d => {
+                if ((d.floor === 'baixo' && !showFloorBaixo) || (d.floor === 'cima' && !showFloorCima)) return;
                 const w = project.walls.find(item => item.id === d.wallId);
                 if (!w || d.isHollow) return;
                 const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
                 const angle = Math.atan2(dy, dx);
                 const pos = { x: w.x1 + dx * d.offset, y: w.y1 + dy * d.offset };
                 const doorH = d.height || 210, doorW = d.width || 90;
+                const baseY = d.floor === 'cima' ? standardGroundWallH : 0;
                 const mesh = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, (w.thickness || 20) + 2), doorMat);
-                mesh.position.set(pos.x, doorH / 2, pos.y);
+                mesh.position.set(pos.x, baseY + doorH / 2, pos.y);
                 mesh.rotation.y = -angle;
                 houseGroup3D.add(mesh);
             });
 
             const winMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.4, roughness: 0.1 });
             project.windows.forEach(win => {
+                if ((win.floor === 'baixo' && !showFloorBaixo) || (win.floor === 'cima' && !showFloorCima)) return;
                 const w = project.walls.find(item => item.id === win.wallId);
                 if (!w) return;
                 const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
                 const angle = Math.atan2(dy, dx);
                 const pos = { x: w.x1 + dx * win.offset, y: w.y1 + dy * win.offset };
                 const winH = win.height || 120, winW = win.width || 120, sill = win.sillHeight || 90;
+                const baseY = win.floor === 'cima' ? standardGroundWallH : 0;
                 const mesh = new THREE.Mesh(new THREE.BoxGeometry(winW, winH, (w.thickness || 20) + 4), winMat);
-                mesh.position.set(pos.x, sill + winH / 2, pos.y);
+                mesh.position.set(pos.x, baseY + sill + winH / 2, pos.y);
                 mesh.rotation.y = -angle;
                 houseGroup3D.add(mesh);
             });
@@ -1185,25 +1364,35 @@
                 const width = (maxX - minX) + 300, depth = (maxZ - minZ) + 300;
                 const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
 
-                const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMat);
-                floorMesh.rotation.x = -Math.PI / 2;
-                floorMesh.position.set(cx, 0, cz);
-                floorMesh.receiveShadow = true;
-                houseGroup3D.add(floorMesh);
+                // Chão do Térreo
+                if (showFloorBaixo) {
+                    const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMat);
+                    floorMesh.rotation.x = -Math.PI / 2;
+                    floorMesh.position.set(cx, 0, cz);
+                    floorMesh.receiveShadow = true;
+                    houseGroup3D.add(floorMesh);
+                }
+
+                // Laje Intermediária (Entre Térreo e Superior) se ambos visíveis ou se houver andar superior
+                const hasCimaWalls = project.walls.some(w => w.floor === 'cima') || project.furniture.some(f => f.floor === 'cima');
+                if (hasCimaWalls && showFloorBaixo) {
+                    const slabMesh = new THREE.Mesh(new THREE.BoxGeometry(width, 15, depth), slabMat);
+                    slabMesh.position.set(cx, standardGroundWallH + 7.5, cz);
+                    slabMesh.receiveShadow = true; slabMesh.castShadow = true;
+                    houseGroup3D.add(slabMesh);
+                }
 
                 const roofMode = document.getElementById('roof-mode').value;
-                const standardWallH = 280;
+                const topRoofBaseY = hasCimaWalls ? standardGroundWallH * 2 : standardGroundWallH;
 
-                // --- 5 EXEMPLOS DE TETOS PRONTOS PARA ENCAIXE ---
+                // --- TETOS / COBERTURAS (Adaptados ao pavimento superior) ---
                 if (roofMode === 'flat') {
-                    // 1. Laje Plana Coberta
                     const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(width, 15, depth), concreteRoofMat);
-                    roofMesh.position.set(cx, standardWallH + 7.5, cz);
+                    roofMesh.position.set(cx, topRoofBaseY + 7.5, cz);
                     roofMesh.castShadow = true; roofMesh.receiveShadow = true;
                     houseGroup3D.add(roofMesh);
 
                 } else if (roofMode === 'gable') {
-                    // 2. Telhado Duas Águas (Gable Roof Clássico)
                     const roofGroup = new THREE.Group();
                     const roofW = width + 60, roofL = depth + 60;
                     const peakHeight = 110;
@@ -1221,11 +1410,10 @@
                     rightSlope.castShadow = true; rightSlope.receiveShadow = true;
                     roofGroup.add(rightSlope);
 
-                    roofGroup.position.set(cx, standardWallH, cz);
+                    roofGroup.position.set(cx, topRoofBaseY, cz);
                     houseGroup3D.add(roofGroup);
 
                 } else if (roofMode === 'hip') {
-                    // 3. Telhado Quatro Águas (Hip Roof)
                     const roofGroup = new THREE.Group();
                     const rw = width + 80, rd = depth + 80;
                     const h = 100;
@@ -1238,20 +1426,18 @@
                     hipMesh.castShadow = true; hipMesh.receiveShadow = true;
                     roofGroup.add(hipMesh);
 
-                    roofGroup.position.set(cx, standardWallH, cz);
+                    roofGroup.position.set(cx, topRoofBaseY, cz);
                     houseGroup3D.add(roofGroup);
 
                 } else if (roofMode === 'shed') {
-                    // 4. Telhado Uma Água (Shed Roof / Rampa Única)
                     const shedGeo = new THREE.BoxGeometry(width + 80, 12, depth + 80);
                     const shedMesh = new THREE.Mesh(shedGeo, roofTileMat);
-                    shedMesh.position.set(cx, standardWallH + 60, cz);
-                    shedMesh.rotation.x = 0.18; // Inclinação frontal
+                    shedMesh.position.set(cx, topRoofBaseY + 60, cz);
+                    shedMesh.rotation.x = 0.18;
                     shedMesh.castShadow = true; shedMesh.receiveShadow = true;
                     houseGroup3D.add(shedMesh);
 
                 } else if (roofMode === 'mansard') {
-                    // 5. Telhado Mansarda / Gambrel (Dupla Inclinação Estilo Sótão)
                     const roofGroup = new THREE.Group();
                     const rw = width + 60, rd = depth + 60;
                     
@@ -1267,12 +1453,14 @@
                     upperMesh.castShadow = true;
                     roofGroup.add(upperMesh);
 
-                    roofGroup.position.set(cx, standardWallH, cz);
+                    roofGroup.position.set(cx, topRoofBaseY, cz);
                     houseGroup3D.add(roofGroup);
                 }
             }
 
+            // Renderizar Móveis (Baixo e Cima)
             project.furniture.forEach(f => {
+                if ((f.floor === 'baixo' && !showFloorBaixo) || (f.floor === 'cima' && !showFloorCima)) return;
                 const group = new THREE.Group();
                 let color = 0x818cf8;
                 if (f.type === 'sofa') color = 0xfbbf24;
@@ -1282,7 +1470,9 @@
                 mesh.castShadow = true; mesh.receiveShadow = true;
                 mesh.position.y = (f.height || 60) / 2;
                 group.add(mesh);
-                group.position.set(f.x, 0, f.y);
+                
+                const baseY = f.floor === 'cima' ? standardGroundWallH : 0;
+                group.position.set(f.x, baseY, f.y);
                 group.rotation.y = -(f.rotation || 0) * Math.PI / 180;
                 houseGroup3D.add(group);
             });
@@ -1312,14 +1502,14 @@
 
             if (!hasItems) {
                 if (showAlert) showToast('Nenhum item ou parede encontrado para centralizar.', 'error');
-                camera3D.position.set(0, 500, 700); controls3D.target.set(0, 0, 0); controls3D.update();
+                camera3D.position.set(0, 600, 900); controls3D.target.set(0, 0, 0); controls3D.update();
                 return;
             }
 
             const centerX = (minX + maxX) / 2, centerZ = (minZ + maxZ) / 2;
             const maxDim = Math.max(maxX - minX, maxZ - minZ, 300);
-            controls3D.target.set(centerX, 0, centerZ);
-            camera3D.position.set(centerX, maxDim * 1.3, centerZ + maxDim * 1.6);
+            controls3D.target.set(centerX, 140, centerZ);
+            camera3D.position.set(centerX, maxDim * 1.4, centerZ + maxDim * 1.7);
             controls3D.update();
             if (showAlert) showToast('Visualização 3D centralizada com sucesso!');
         }
@@ -1335,21 +1525,21 @@
         }
 
         function saveAndSync() {
-            localStorage.setItem('arquistudio_pro_project_v2', JSON.stringify(project));
+            localStorage.setItem('arquistudio_pro_project_sobrado', JSON.stringify(project));
             if (is3DInitialized) update3DScene();
         }
 
         function saveProject() {
-            project.name = document.getElementById('project-name-input').value || "Projeto sem título";
+            project.name = document.getElementById('project-name-input').value || "Meu Sobrado";
             document.getElementById('project-title-display').innerText = project.name;
             saveAndSync();
             closeModal('project-modal');
-            showToast('Projeto salvo!');
+            showToast('Projeto de sobrado salvo!');
         }
 
         function clearProject() {
-            if (confirm("Deseja limpar todo o projeto?")) {
-                project = { name: "Projeto em Branco", walls: [], doors: [], windows: [], furniture: [] };
+            if (confirm("Deseja limpar todo o projeto do sobrado?")) {
+                project = { name: "Sobrado em Branco", walls: [], doors: [], windows: [], furniture: [] };
                 selectedItem = null; updatePropertiesPanel(); saveAndSync();
                 showToast('Projeto limpo.');
             }
@@ -1369,9 +1559,15 @@
             reader.onload = function(e) {
                 try {
                     project = JSON.parse(e.target.result);
+                    // Garantir compatibilidade com projetos antigos sem a propriedade 'floor'
+                    ['walls', 'doors', 'windows', 'furniture'].forEach(key => {
+                        if (project[key]) {
+                            project[key].forEach(item => { if (!item.floor) item.floor = 'baixo'; });
+                        }
+                    });
                     document.getElementById('project-name-input').value = project.name;
                     document.getElementById('project-title-display').innerText = project.name;
-                    saveAndSync(); showToast('Projeto importado!');
+                    saveAndSync(); showToast('Projeto de sobrado importado!');
                 } catch (err) { showToast('Erro ao ler arquivo.', 'error'); }
             };
             reader.readAsText(file);
@@ -1391,8 +1587,8 @@
             showToast('Imagem exportada!');
         }
 
-        function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+        function openModal(id) { document.getElementById(id).classList.add('flex'); document.getElementById(id).classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('flex'); document.getElementById(id).classList.add('hidden'); }
     </script>
 </body>
 </html>
