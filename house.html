@@ -798,7 +798,6 @@
             let closest = null, minDist = Infinity;
             for (let w of project.walls) {
                 if ((w.floor === 'baixo' && !showFloorBaixo) || (w.floor === 'cima' && !showFloorCima)) continue;
-                // Permitir apenas colar na parede do mesmo andar ativo ou de andares visíveis
                 const d = distToSegment({ x, y }, { x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 });
                 if (d < minDist) { minDist = d; closest = w; }
             }
@@ -895,7 +894,7 @@
                             <span class="text-slate-600">Porta Vazada (Vão Livre)</span>
                             <input type="checkbox" ${d.isHollow ? 'checked' : ''} onchange="updateItemProp('door', '${d.id}', 'isHollow', this.checked)" class="rounded bg-white border-slate-300 text-indigo-600 w-4 h-4 cursor-pointer">
                         </div>
-                        <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('door', '${d.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-700"></div>
+                        <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('door', '${d.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                         <div><label class="text-slate-500">Altura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayH}" onchange="updateItemPropUnit('door', '${d.id}', 'height', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                     </div>
                 `;
@@ -984,14 +983,21 @@
             for (let y = startY; y < canvas2D.height; y += gridPx) { ctx2D.moveTo(0, y); ctx2D.lineTo(canvas2D.width, y); }
             ctx2D.stroke();
 
-            // Renderizar Paredes com cores distintas para diferenciar Térreo vs Superior (se ambos visíveis)
+            // Renderizar Paredes
             for (let w of project.walls) {
                 if ((w.floor === 'baixo' && !showFloorBaixo) || (w.floor === 'cima' && !showFloorCima)) continue;
                 const p1 = worldToScreen(w.x1, w.y1), p2 = worldToScreen(w.x2, w.y2);
                 
+                ctx2D.save();
+                const isBaixoAndBothActive = (showFloorBaixo && showFloorCima && w.floor === 'baixo');
+                if (isBaixoAndBothActive) {
+                    ctx2D.globalAlpha = 0.45;
+                    ctx2D.setLineDash([6, 4]);
+                }
+
                 let strokeColor = '#64748b'; // Padrão
                 if (showFloorBaixo && showFloorCima) {
-                    strokeColor = w.floor === 'cima' ? '#8b5cf6' : '#64748b'; // Roxo para cima, Cinza para baixo
+                    strokeColor = w.floor === 'cima' ? '#8b5cf6' : '#64748b';
                 }
                 ctx2D.strokeStyle = selectedItem && selectedItem.id === w.id ? '#6366f1' : strokeColor;
                 ctx2D.lineWidth = (w.thickness || 20) * (scale2D * 0.5);
@@ -999,11 +1005,13 @@
                 ctx2D.beginPath(); ctx2D.moveTo(p1.x, p1.y); ctx2D.lineTo(p2.x, p2.y); ctx2D.stroke();
 
                 if (selectedItem && selectedItem.id === w.id) {
+                    ctx2D.setLineDash([]); // Remover tracejado para alças de seleção
                     ctx2D.fillStyle = '#ffffff'; ctx2D.strokeStyle = '#4f46e5'; ctx2D.lineWidth = 3;
                     [p1, p2].forEach(pt => {
                         ctx2D.beginPath(); ctx2D.arc(pt.x, pt.y, 8, 0, Math.PI * 2); ctx2D.fill(); ctx2D.stroke();
                     });
                 }
+                ctx2D.restore();
             }
 
             // Portas
@@ -1013,10 +1021,19 @@
                 if (!w) continue;
                 const pos = { x: w.x1 + (w.x2 - w.x1) * d.offset, y: w.y1 + (w.y2 - w.y1) * d.offset };
                 const pt = worldToScreen(pos.x, pos.y);
+
+                ctx2D.save();
+                const isBaixoAndBothActive = (showFloorBaixo && showFloorCima && d.floor === 'baixo');
+                if (isBaixoAndBothActive) {
+                    ctx2D.globalAlpha = 0.45;
+                    ctx2D.setLineDash([4, 4]);
+                }
+
                 ctx2D.fillStyle = d.isHollow ? '#10b981' : '#0891b2';
                 ctx2D.strokeStyle = selectedItem && selectedItem.id === d.id ? '#ffffff' : 'transparent';
                 ctx2D.lineWidth = 2;
                 ctx2D.beginPath(); ctx2D.arc(pt.x, pt.y, selectedItem && selectedItem.id === d.id ? 10 : 8, 0, Math.PI * 2); ctx2D.fill(); ctx2D.stroke();
+                ctx2D.restore();
             }
 
             // Janelas
@@ -1026,20 +1043,37 @@
                 if (!w) continue;
                 const pos = { x: w.x1 + (w.x2 - w.x1) * win.offset, y: w.y1 + (w.y2 - w.y1) * win.offset };
                 const pt = worldToScreen(pos.x, pos.y);
+
+                ctx2D.save();
+                const isBaixoAndBothActive = (showFloorBaixo && showFloorCima && win.floor === 'baixo');
+                if (isBaixoAndBothActive) {
+                    ctx2D.globalAlpha = 0.45;
+                    ctx2D.setLineDash([4, 4]);
+                }
+
                 ctx2D.fillStyle = '#0ea5e9';
                 ctx2D.strokeStyle = selectedItem && selectedItem.id === win.id ? '#ffffff' : 'transparent';
                 ctx2D.lineWidth = 2;
                 ctx2D.fillRect(pt.x - 7, pt.y - 7, 14, 14);
                 ctx2D.strokeRect(pt.x - 7, pt.y - 7, 14, 14);
+                ctx2D.restore();
             }
 
             // Móveis
             for (let f of project.furniture) {
                 if ((f.floor === 'baixo' && !showFloorBaixo) || (f.floor === 'cima' && !showFloorCima)) continue;
                 const pt = worldToScreen(f.x, f.y);
+
                 ctx2D.save();
                 ctx2D.translate(pt.x, pt.y);
                 ctx2D.rotate((f.rotation || 0) * Math.PI / 180);
+
+                const isBaixoAndBothActive = (showFloorBaixo && showFloorCima && f.floor === 'baixo');
+                if (isBaixoAndBothActive) {
+                    ctx2D.globalAlpha = 0.45;
+                    ctx2D.setLineDash([4, 4]);
+                }
+
                 const wPx = f.width * (scale2D * 0.5), dPx = f.depth * (scale2D * 0.5);
                 ctx2D.fillStyle = selectedItem && selectedItem.id === f.id ? 'rgba(99, 102, 241, 0.3)' : 'rgba(241, 245, 249, 0.9)';
                 ctx2D.strokeStyle = selectedItem && selectedItem.id === f.id ? '#4f46e5' : '#94a3b8';
@@ -1163,13 +1197,12 @@
             houseGroup3D = new THREE.Group();
 
             const wallMatBaixo = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7, metalness: 0.05 });
-            const wallMatCima = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.7, metalness: 0.05 }); // Tom ligeiramente diferente para andar superior
+            const wallMatCima = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.7, metalness: 0.05 });
             const floorMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.5, metalness: 0.1 });
-            const slabMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.6 }); // Laje intermediária
-            const roofTileMat = new THREE.MeshStandardMaterial({ color: 0x993d28, roughness: 0.6 }); // Telha Cerâmica
+            const slabMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.6 });
+            const roofTileMat = new THREE.MeshStandardMaterial({ color: 0x993d28, roughness: 0.6 });
             const concreteRoofMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.6 });
 
-            // Altura padrão do térreo para elevação do andar superior
             const standardGroundWallH = 280; 
 
             // --- 1. RENDERIZAR PAREDES (BAIXO) ---
@@ -1241,7 +1274,7 @@
                 });
             }
 
-            // --- 2. RENDERIZAR PAREDES (CIMA - SOBRADO POSICIONADO ACIMA DO TÉRREO y = wallHeight) ---
+            // --- 2. RENDERIZAR PAREDES (CIMA) ---
             if (showFloorCima) {
                 project.walls.filter(w => w.floor === 'cima').forEach(w => {
                     const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
@@ -1249,7 +1282,7 @@
                     if (length === 0) return;
                     const angle = Math.atan2(dy, dx);
                     const height = w.height || 280, thickness = w.thickness || 20;
-                    const baseY = standardGroundWallH; // Posicionado acima da parede do térreo
+                    const baseY = standardGroundWallH;
 
                     const wallDoors = project.doors.filter(d => d.wallId === w.id && d.isHollow)
                         .map(d => ({ offset: d.offset, width: d.width || 90, height: d.height || 210 }))
@@ -1311,7 +1344,7 @@
                 });
             }
 
-            // Portas e Janelas (Baixo e Cima)
+            // Portas e Janelas
             const doorMat = new THREE.MeshStandardMaterial({ color: 0x0891b2, roughness: 0.4 });
             project.doors.forEach(d => {
                 if ((d.floor === 'baixo' && !showFloorBaixo) || (d.floor === 'cima' && !showFloorCima)) return;
@@ -1364,7 +1397,6 @@
                 const width = (maxX - minX) + 300, depth = (maxZ - minZ) + 300;
                 const cx = (minX + maxX) / 2, cz = (minZ + maxZ) / 2;
 
-                // Chão do Térreo
                 if (showFloorBaixo) {
                     const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), floorMat);
                     floorMesh.rotation.x = -Math.PI / 2;
@@ -1373,7 +1405,6 @@
                     houseGroup3D.add(floorMesh);
                 }
 
-                // Laje Intermediária (Entre Térreo e Superior) se ambos visíveis ou se houver andar superior
                 const hasCimaWalls = project.walls.some(w => w.floor === 'cima') || project.furniture.some(f => f.floor === 'cima');
                 if (hasCimaWalls && showFloorBaixo) {
                     const slabMesh = new THREE.Mesh(new THREE.BoxGeometry(width, 15, depth), slabMat);
@@ -1385,13 +1416,11 @@
                 const roofMode = document.getElementById('roof-mode').value;
                 const topRoofBaseY = hasCimaWalls ? standardGroundWallH * 2 : standardGroundWallH;
 
-                // --- TETOS / COBERTURAS (Adaptados ao pavimento superior) ---
                 if (roofMode === 'flat') {
                     const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(width, 15, depth), concreteRoofMat);
                     roofMesh.position.set(cx, topRoofBaseY + 7.5, cz);
                     roofMesh.castShadow = true; roofMesh.receiveShadow = true;
                     houseGroup3D.add(roofMesh);
-
                 } else if (roofMode === 'gable') {
                     const roofGroup = new THREE.Group();
                     const roofW = width + 60, roofL = depth + 60;
@@ -1412,7 +1441,6 @@
 
                     roofGroup.position.set(cx, topRoofBaseY, cz);
                     houseGroup3D.add(roofGroup);
-
                 } else if (roofMode === 'hip') {
                     const roofGroup = new THREE.Group();
                     const rw = width + 80, rd = depth + 80;
@@ -1428,7 +1456,6 @@
 
                     roofGroup.position.set(cx, topRoofBaseY, cz);
                     houseGroup3D.add(roofGroup);
-
                 } else if (roofMode === 'shed') {
                     const shedGeo = new THREE.BoxGeometry(width + 80, 12, depth + 80);
                     const shedMesh = new THREE.Mesh(shedGeo, roofTileMat);
@@ -1436,7 +1463,6 @@
                     shedMesh.rotation.x = 0.18;
                     shedMesh.castShadow = true; shedMesh.receiveShadow = true;
                     houseGroup3D.add(shedMesh);
-
                 } else if (roofMode === 'mansard') {
                     const roofGroup = new THREE.Group();
                     const rw = width + 60, rd = depth + 60;
@@ -1458,7 +1484,6 @@
                 }
             }
 
-            // Renderizar Móveis (Baixo e Cima)
             project.furniture.forEach(f => {
                 if ((f.floor === 'baixo' && !showFloorBaixo) || (f.floor === 'cima' && !showFloorCima)) return;
                 const group = new THREE.Group();
@@ -1559,7 +1584,6 @@
             reader.onload = function(e) {
                 try {
                     project = JSON.parse(e.target.result);
-                    // Garantir compatibilidade com projetos antigos sem a propriedade 'floor'
                     ['walls', 'doors', 'windows', 'furniture'].forEach(key => {
                         if (project[key]) {
                             project[key].forEach(item => { if (!item.floor) item.floor = 'baixo'; });
