@@ -128,14 +128,17 @@
                     <button onclick="setTool('wall')" id="tool-wall" class="tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium">
                         <i data-lucide="hammer" class="w-5 h-5 text-amber-600"></i> Parede
                     </button>
+                    <button onclick="setTool('rect')" id="tool-rect" class="tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium">
+                        <i data-lucide="square" class="w-5 h-5 text-indigo-600"></i> Retângulo
+                    </button>
                     <button onclick="setTool('door')" id="tool-door" class="tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium">
                         <i data-lucide="door-open" class="w-5 h-5 text-cyan-600"></i> Porta
                     </button>
                     <button onclick="setTool('window')" id="tool-window" class="tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium">
                         <i data-lucide="panel-top" class="w-5 h-5 text-sky-600"></i> Janela
                     </button>
-                    <button onclick="setTool('measure')" id="tool-measure" class="tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium col-span-2">
-                        <i data-lucide="ruler" class="w-5 h-5 text-purple-600"></i> Medir Distância (Cota)
+                    <button onclick="setTool('measure')" id="tool-measure" class="tool-btn p-3 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 flex flex-col items-center justify-center gap-1.5 transition text-xs font-medium">
+                        <i data-lucide="ruler" class="w-5 h-5 text-purple-600"></i> Cota
                     </button>
                 </div>
 
@@ -231,49 +234,56 @@
             <!-- 3D Viewport -->
             <div id="wrapper-3d" class="relative h-full hidden bg-slate-950" style="width: 0%; flex: 0 0 0%;">
                 <div id="canvas-3d-host" class="w-full h-full"></div>
-                
-                <div class="absolute top-6 right-6 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl p-4 flex flex-col gap-3.5 z-10 text-xs w-72 text-slate-200">
-                    <h3 class="font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
-                        <i data-lucide="sun" class="w-4 h-4 text-amber-400"></i> Iluminação & Cobertura
-                    </h3>
-                    
-                    <button onclick="center3DCamera(true)" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded-xl transition flex items-center justify-center gap-2 shadow-md">
-                        <i data-lucide="crosshair" class="w-4 h-4"></i> Centralizar Planta 3D
-                    </button>
-                    
-                    <div class="space-y-1.5">
-                        <div class="flex justify-between text-slate-400">
-                            <span>Tipo de Iluminação</span>
+                <!-- Menu 3D suspenso e minimizável -->
+                <div id="menu-3d-panel" class="absolute top-6 right-6 z-10 text-xs text-slate-200 w-72">
+                    <div class="bg-slate-900/95 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl overflow-hidden">
+                        <div class="flex items-center justify-between px-4 py-3">
+                            <button onclick="toggle3DMenu()" class="flex-1 text-left font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2 hover:text-white transition">
+                                <i data-lucide="sun" class="w-4 h-4 text-amber-400"></i>
+                                <span>Iluminação & Cobertura</span>
+                            </button>
+                            <button onclick="toggle3DMenu()" id="btn-toggle-3d-menu" class="ml-2 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition" title="Minimizar menu">
+                                <i data-lucide="chevron-up" class="w-4 h-4"></i>
+                            </button>
                         </div>
-                        <select id="lighting-mode" onchange="updateLightingMode()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-indigo-500">
-                            <option value="constant">Luz Uniforme Constante</option>
-                            <option value="studio">Estúdio Neutro</option>
-                            <option value="suntime">Solar Dinâmica</option>
-                        </select>
-                    </div>
 
-                    <div id="time-container" class="space-y-1.5 hidden">
-                        <div class="flex justify-between text-slate-400">
-                            <span>Hora do Sol</span>
-                            <span id="time-val" class="text-indigo-400 font-semibold font-mono">12:00</span>
-                        </div>
-                        <input type="range" id="sun-time" min="6" max="19" step="0.5" value="12" class="w-full accent-indigo-500 cursor-pointer" oninput="updateLighting()">
-                    </div>
+                        <div id="menu-3d-content" class="px-4 pb-4 flex flex-col gap-3.5">
+                            <button onclick="center3DCamera(true)" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded-xl transition flex items-center justify-center gap-2 shadow-md">
+                                <i data-lucide="crosshair" class="w-4 h-4"></i> Centralizar Planta 3D
+                            </button>
 
-                    <!-- Seletor de Telhados Prontos -->
-                    <div class="space-y-1.5 border-t border-slate-800 pt-3">
-                        <div class="flex justify-between text-slate-300 font-semibold">
-                            <span class="flex items-center gap-1.5"><i data-lucide="home" class="w-4 h-4 text-amber-500"></i> Modelo de Teto / Cobertura</span>
+                            <div class="space-y-1.5">
+                                <div class="flex justify-between text-slate-400"><span>Tipo de Iluminação</span></div>
+                                <select id="lighting-mode" onchange="updateLightingMode()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-indigo-500">
+                                    <option value="constant">Luz Uniforme Constante</option>
+                                    <option value="studio">Estúdio Neutro</option>
+                                    <option value="suntime">Solar Dinâmica</option>
+                                </select>
+                            </div>
+
+                            <div id="time-container" class="space-y-1.5 hidden">
+                                <div class="flex justify-between text-slate-400">
+                                    <span>Hora do Sol</span>
+                                    <span id="time-val" class="text-indigo-400 font-semibold font-mono">12:00</span>
+                                </div>
+                                <input type="range" id="sun-time" min="6" max="19" step="0.5" value="12" class="w-full accent-indigo-500 cursor-pointer" oninput="updateLighting()">
+                            </div>
+
+                            <div class="space-y-1.5 border-t border-slate-800 pt-3">
+                                <div class="flex justify-between text-slate-300 font-semibold">
+                                    <span class="flex items-center gap-1.5"><i data-lucide="home" class="w-4 h-4 text-amber-500"></i> Modelo de Teto / Cobertura</span>
+                                </div>
+                                <select id="roof-mode" onchange="update3DScene()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 font-medium">
+                                    <option value="none">1. Sem Teto (Aberto)</option>
+                                    <option value="flat">2. Laje Plana Coberta</option>
+                                    <option value="gable">3. Telhado Duas Águas (Clássico)</option>
+                                    <option value="hip">4. Telhado Quatro Águas (Hip Roof)</option>
+                                    <option value="shed">5. Telhado Uma Água (Shed / Rampa)</option>
+                                    <option value="mansard">6. Telhado Mansarda (Gambrel)</option>
+                                </select>
+                                <p class="text-[10px] text-slate-400">Adaptado ao perímetro superior do sobrado.</p>
+                            </div>
                         </div>
-                        <select id="roof-mode" onchange="update3DScene()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 font-medium">
-                            <option value="none">1. Sem Teto (Aberto)</option>
-                            <option value="flat">2. Laje Plana Coberta</option>
-                            <option value="gable">3. Telhado Duas Águas (Clássico)</option>
-                            <option value="hip">4. Telhado Quatro Águas (Hip Roof)</option>
-                            <option value="shed">5. Telhado Uma Água (Shed / Rampa)</option>
-                            <option value="mansard">6. Telhado Mansarda (Gambrel)</option>
-                        </select>
-                        <p class="text-[10px] text-slate-400">Adaptado ao perímetro superior do sobrado.</p>
                     </div>
                 </div>
 
@@ -339,10 +349,10 @@
 
         let project = {
             name: "Meu Sobrado",
-            walls: [],    // { id, x1, y1, x2, y2, thickness, height, floor }
-            doors: [],    // { id, wallId, offset, width, height, isHollow, floor }
-            windows: [],  // { id, wallId, offset, width, height, sillHeight, floor }
-            furniture: [] // { id, type, name, x, y, rotation, width, depth, height, floor }
+            walls: [],    // { id, x1, y1, x2, y2, thickness, height, floor, color, texture }
+            doors: [],    // { id, wallId, offset, width, height, isHollow, floor, color, texture }
+            windows: [],  // { id, wallId, offset, width, height, sillHeight, isHollow, floor, color, texture }
+            furniture: [] // { id, type, name, x, y, rotation, width, depth, height, floor, color, texture }
         };
 
         function formatUnit(valCm) {
@@ -360,6 +370,14 @@
             return num;
         }
 
+
+        function normalizeProjectAppearance() {
+            project.walls.forEach(w => { if (!w.color) w.color='#64748b'; if (!w.texture) w.texture='none'; });
+            project.doors.forEach(d => { if (!d.color) d.color='#0891b2'; if (!d.texture) d.texture='none'; });
+            project.windows.forEach(w => { if (w.isHollow === undefined) w.isHollow=false; if (!w.color) w.color='#38bdf8'; if (!w.texture) w.texture='glass'; });
+            project.furniture.forEach(f => { if (!f.color) f.color='#818cf8'; if (!f.texture) f.texture='none'; });
+        }
+
         const canvas2D = document.getElementById('canvas-2d');
         const ctx2D = canvas2D.getContext('2d');
         let scale2D = 1.0;
@@ -367,6 +385,7 @@
         let isDraggingCanvas = false;
         let dragStart2D = { x: 0, y: 0 };
         let drawingWallStart = null;
+        let drawingRectStart = null;
         let currentMouseWorld = { x: 0, y: 0 };
         let selectedItem = null; 
         let measuringStart = null;
@@ -382,6 +401,7 @@
         window.addEventListener('load', () => {
             if (typeof lucide !== 'undefined') lucide.createIcons();
             init2DCanvas();
+            normalizeProjectAppearance();
             updateActiveFloorUI();
             updatePropertiesPanel();
             initSplitResizer();
@@ -477,6 +497,20 @@
                     document.body.style.cursor = 'default';
                 }
             });
+        }
+
+        function toggle3DMenu() {
+            const content = document.getElementById('menu-3d-content');
+            const button = document.getElementById('btn-toggle-3d-menu');
+            if (!content || !button) return;
+
+            const minimized = content.classList.toggle('hidden');
+            button.innerHTML = minimized
+                ? '<i data-lucide="chevron-down" class="w-4 h-4"></i>'
+                : '<i data-lucide="chevron-up" class="w-4 h-4"></i>';
+            button.title = minimized ? 'Expandir menu' : 'Minimizar menu';
+
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
 
         function showToast(msg, type = 'success') {
@@ -668,6 +702,9 @@
             } else if (currentTool === 'wall') {
                 const pt = getSnappedPoint(world.x, world.y);
                 drawingWallStart = { x: pt.x, y: pt.y };
+            } else if (currentTool === 'rect') {
+                const pt = getSnappedPoint(world.x, world.y);
+                drawingRectStart = { x: pt.x, y: pt.y };
             } else if (currentTool === 'measure') {
                 measuringStart = { x: world.x, y: world.y };
                 measuringEnd = { x: world.x, y: world.y };
@@ -676,10 +713,10 @@
                 if (wall) {
                     const offset = getWallOffset(wall, world.x, world.y);
                     if (currentTool === 'door') {
-                        project.doors.push({ id: 'door_' + Date.now(), wallId: wall.id, offset, width: 90, height: 210, isHollow: false, floor: wall.floor });
+                        project.doors.push({ id: 'door_' + Date.now(), wallId: wall.id, offset, width: 90, height: 210, isHollow: false, floor: wall.floor, color: '#0891b2', texture: 'none' });
                         showToast(`Porta adicionada no andar ${wall.floor === 'baixo' ? 'Térreo' : 'Superior'}!`);
                     } else {
-                        project.windows.push({ id: 'win_' + Date.now(), wallId: wall.id, offset, width: 120, height: 120, sillHeight: 90, floor: wall.floor });
+                        project.windows.push({ id: 'win_' + Date.now(), wallId: wall.id, offset, width: 120, height: 120, sillHeight: 90, isHollow: false, floor: wall.floor, color: '#38bdf8', texture: 'glass' });
                         showToast(`Janela adicionada no andar ${wall.floor === 'baixo' ? 'Térreo' : 'Superior'}!`);
                     }
                     saveAndSync();
@@ -740,12 +777,50 @@
                         y2: endY,
                         thickness: wallThicknessDefault,
                         height: wallHeightDefault,
-                        floor: activeFloor
+                        floor: activeFloor,
+                        color: '#64748b',
+                        texture: 'none'
                     });
                     saveAndSync();
                     showToast(`Parede criada no andar ${activeFloor === 'baixo' ? 'Térreo' : 'Superior'}!`);
                 }
                 drawingWallStart = null;
+            }
+            if (currentTool === 'rect' && drawingRectStart) {
+                const endX = currentMouseWorld.x;
+                const endY = currentMouseWorld.y;
+
+                if (Math.abs(endX - drawingRectStart.x) > 15 && Math.abs(endY - drawingRectStart.y) > 15) {
+                    const x1 = drawingRectStart.x, y1 = drawingRectStart.y;
+                    const x2 = endX, y2 = endY;
+                    const now = Date.now();
+
+                    const corners = [
+                        { x1: x1, y1: y1, x2: x2, y2: y1 },
+                        { x1: x2, y1: y1, x2: x2, y2: y2 },
+                        { x1: x2, y1: y2, x2: x1, y2: y2 },
+                        { x1: x1, y1: y2, x2: x1, y2: y1 }
+                    ];
+
+                    corners.forEach((c, idx) => {
+                        project.walls.push({
+                            id: 'wall_' + now + '_' + idx,
+                            x1: c.x1,
+                            y1: c.y1,
+                            x2: c.x2,
+                            y2: c.y2,
+                            thickness: wallThicknessDefault,
+                            height: wallHeightDefault,
+                            floor: activeFloor,
+                            color: '#64748b',
+                            texture: 'none'
+                        });
+                    });
+
+                    saveAndSync();
+                    showToast(`Cômodo retangular criado no andar ${activeFloor === 'baixo' ? 'Térreo' : 'Superior'}!`);
+                }
+                drawingRectStart = null;
             }
             if (currentTool === 'measure' && measuringStart) {
                 measuringStart = null; measuringEnd = null;
@@ -821,11 +896,104 @@
                 toilet: { name: 'Vaso Sanitário', w: 50, d: 70, h: 80 }
             };
             const def = catalog[type] || { name: 'Móvel', w: 100, d: 100, h: 75 };
-            project.furniture.push({ id: 'furn_' + Date.now(), type, name: def.name, x: 0, y: 0, rotation: 0, width: def.w, depth: def.d, height: def.h, floor: activeFloor });
+            project.furniture.push({ id: 'furn_' + Date.now(), type, name: def.name, x: 0, y: 0, rotation: 0, width: def.w, depth: def.d, height: def.h, floor: activeFloor, color: '#818cf8', texture: 'none' });
             saveAndSync();
             showToast(`${def.name} adicionado no andar ${activeFloor === 'baixo' ? 'Térreo' : 'Superior'}!`);
             selectedItem = { type: 'furniture', id: project.furniture[project.furniture.length - 1].id };
             updatePropertiesPanel();
+        }
+
+
+        // --- Aparência: cores e texturas ---
+        const TEXTURE_OPTIONS = [
+            ['none', 'Sem textura / Cor sólida'],
+            ['wood', 'Madeira'],
+            ['brick', 'Tijolo'],
+            ['concrete', 'Concreto'],
+            ['tile', 'Azulejo'],
+            ['stone', 'Pedra'],
+            ['glass', 'Vidro']
+        ];
+
+        function colorTextureControls(category, id, item, label = 'Aparência') {
+            const color = item.color || (category === 'wall' ? '#64748b' : category === 'window' ? '#38bdf8' : '#0891b2');
+            const texture = item.texture || 'none';
+            return `
+                <div class="pt-2 border-t border-slate-200 space-y-2">
+                    <div class="text-[11px] font-bold uppercase tracking-wide text-slate-500">${label}</div>
+                    <div class="grid grid-cols-[1fr_72px] gap-2 items-center">
+                        <label class="text-slate-500">Cor</label>
+                        <input type="color" value="${color}" onchange="updateAppearance('${category}','${id}','color',this.value)" class="w-full h-8 p-0.5 bg-white border border-slate-300 rounded-lg cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="text-slate-500">Textura</label>
+                        <select onchange="updateAppearance('${category}','${id}','texture',this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1.5 text-slate-700 text-xs">
+                            ${TEXTURE_OPTIONS.map(([v,t]) => `<option value="${v}" ${texture===v?'selected':''}>${t}</option>`).join('')}
+                        </select>
+                    </div>
+                </div>`;
+        }
+
+        function updateAppearance(category, id, prop, value) {
+            const collection = category === 'furniture' ? project.furniture :
+                category === 'wall' ? project.walls :
+                category === 'door' ? project.doors : project.windows;
+            const item = collection.find(i => i.id === id);
+            if (!item) return;
+            item[prop] = value;
+            saveAndSync();
+            updatePropertiesPanel();
+        }
+
+        function getTextureCanvas(type, baseColor = '#ffffff') {
+            const c = document.createElement('canvas');
+            c.width = c.height = 64;
+            const x = c.getContext('2d');
+            x.fillStyle = baseColor;
+            x.fillRect(0,0,64,64);
+            if (type === 'wood') {
+                x.strokeStyle = 'rgba(80,45,20,.35)'; x.lineWidth = 3;
+                for (let y=8;y<64;y+=13) { x.beginPath(); x.moveTo(0,y); x.bezierCurveTo(16,y-5,38,y+6,64,y-2); x.stroke(); }
+            } else if (type === 'brick') {
+                x.strokeStyle = 'rgba(80,40,30,.45)'; x.lineWidth = 2;
+                for (let y=16;y<64;y+=16) { x.beginPath(); x.moveTo(0,y); x.lineTo(64,y); x.stroke(); }
+                for (let y=0;y<64;y+=32) for (let xx=0;xx<64;xx+=32) { x.beginPath(); x.moveTo(xx,y); x.lineTo(xx,y+16); x.stroke(); }
+            } else if (type === 'concrete') {
+                x.fillStyle = 'rgba(0,0,0,.06)';
+                for(let i=0;i<80;i++) x.fillRect(Math.random()*64,Math.random()*64,1.5,1.5);
+            } else if (type === 'tile') {
+                x.strokeStyle = 'rgba(30,60,80,.28)'; x.lineWidth = 2;
+                for(let n=0;n<=64;n+=16){ x.beginPath();x.moveTo(n,0);x.lineTo(n,64);x.stroke();x.beginPath();x.moveTo(0,n);x.lineTo(64,n);x.stroke(); }
+            } else if (type === 'stone') {
+                x.strokeStyle='rgba(40,40,40,.3)'; x.lineWidth=2;
+                x.beginPath(); x.moveTo(5,20);x.lineTo(25,8);x.lineTo(48,17);x.lineTo(58,38);x.lineTo(40,58);x.lineTo(15,50);x.closePath();x.stroke();
+            } else if (type === 'glass') {
+                x.fillStyle='rgba(255,255,255,.18)'; x.fillRect(0,0,64,64);
+                x.strokeStyle='rgba(255,255,255,.55)'; x.lineWidth=4;
+                x.beginPath();x.moveTo(4,58);x.lineTo(58,4);x.stroke();
+            }
+            return c;
+        }
+
+        function make3DMaterial(item, fallbackColor, extra={}) {
+            const color = item && item.color ? item.color : fallbackColor;
+            const texture = item && item.texture ? item.texture : 'none';
+            const opts = Object.assign({ color, roughness: 0.55, metalness: 0.02 }, extra);
+            if (texture !== 'none') {
+                const tex = new THREE.CanvasTexture(getTextureCanvas(texture, color));
+                tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(2.5, 2.5);
+                opts.map = tex;
+                if (texture === 'glass') { opts.transparent = true; opts.opacity = 0.48; opts.roughness = 0.12; }
+            }
+            return new THREE.MeshStandardMaterial(opts);
+        }
+
+        function make2DPattern(item, fallbackColor) {
+            const texture = item && item.texture ? item.texture : 'none';
+            if (texture === 'none') return item && item.color ? item.color : fallbackColor;
+            const canvas = getTextureCanvas(texture, item && item.color ? item.color : fallbackColor);
+            return ctx2D.createPattern(canvas, 'repeat') || (item && item.color ? item.color : fallbackColor);
         }
 
         function updatePropertiesPanel() {
@@ -854,6 +1022,7 @@
                             <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('furniture', '${f.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                             <div><label class="text-slate-500">Profundidade (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayD}" onchange="updateItemPropUnit('furniture', '${f.id}', 'depth', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                         </div>
+                        ${colorTextureControls('furniture', f.id, f)}
                     </div>
                 `;
             } else if (selectedItem.type === 'wall') {
@@ -877,6 +1046,7 @@
                             <option value="20" ${w.thickness===20?'selected':''}>20 cm</option>
                             <option value="30" ${w.thickness===30?'selected':''}>30 cm</option>
                         </select></div>
+                        ${colorTextureControls('wall', w.id, w, 'Aparência da Parede')}
                     </div>
                 `;
             } else if (selectedItem.type === 'door') {
@@ -896,6 +1066,7 @@
                         </div>
                         <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('door', '${d.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                         <div><label class="text-slate-500">Altura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayH}" onchange="updateItemPropUnit('door', '${d.id}', 'height', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
+                        ${colorTextureControls('door', d.id, d)}
                     </div>
                 `;
             } else if (selectedItem.type === 'window') {
@@ -913,6 +1084,11 @@
                         <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('window', '${win.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                         <div><label class="text-slate-500">Altura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayH}" onchange="updateItemPropUnit('window', '${win.id}', 'height', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                         <div><label class="text-slate-500">Peitoril (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displaySill}" onchange="updateItemPropUnit('window', '${win.id}', 'sillHeight', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
+                        <div class="flex items-center justify-between pt-1">
+                            <span class="text-slate-600">Janela Vazada (Vão Livre)</span>
+                            <input type="checkbox" ${win.isHollow ? 'checked' : ''} onchange="updateItemProp('window', '${win.id}', 'isHollow', this.checked)" class="rounded bg-white border-slate-300 text-indigo-600 w-4 h-4 cursor-pointer">
+                        </div>
+                        ${colorTextureControls('window', win.id, win)}
                     </div>
                 `;
             }
@@ -999,7 +1175,7 @@
                 if (showFloorBaixo && showFloorCima) {
                     strokeColor = w.floor === 'cima' ? '#8b5cf6' : '#64748b';
                 }
-                ctx2D.strokeStyle = selectedItem && selectedItem.id === w.id ? '#6366f1' : strokeColor;
+                ctx2D.strokeStyle = selectedItem && selectedItem.id === w.id ? '#6366f1' : make2DPattern(w, strokeColor);
                 ctx2D.lineWidth = (w.thickness || 20) * (scale2D * 0.5);
                 ctx2D.lineCap = 'round';
                 ctx2D.beginPath(); ctx2D.moveTo(p1.x, p1.y); ctx2D.lineTo(p2.x, p2.y); ctx2D.stroke();
@@ -1029,7 +1205,7 @@
                     ctx2D.setLineDash([4, 4]);
                 }
 
-                ctx2D.fillStyle = d.isHollow ? '#10b981' : '#0891b2';
+                ctx2D.fillStyle = make2DPattern(d, d.isHollow ? '#10b981' : '#0891b2');
                 ctx2D.strokeStyle = selectedItem && selectedItem.id === d.id ? '#ffffff' : 'transparent';
                 ctx2D.lineWidth = 2;
                 ctx2D.beginPath(); ctx2D.arc(pt.x, pt.y, selectedItem && selectedItem.id === d.id ? 10 : 8, 0, Math.PI * 2); ctx2D.fill(); ctx2D.stroke();
@@ -1075,7 +1251,7 @@
                 }
 
                 const wPx = f.width * (scale2D * 0.5), dPx = f.depth * (scale2D * 0.5);
-                ctx2D.fillStyle = selectedItem && selectedItem.id === f.id ? 'rgba(99, 102, 241, 0.3)' : 'rgba(241, 245, 249, 0.9)';
+                ctx2D.fillStyle = selectedItem && selectedItem.id === f.id ? 'rgba(99, 102, 241, 0.3)' : make2DPattern(f, '#f1f5f9');
                 ctx2D.strokeStyle = selectedItem && selectedItem.id === f.id ? '#4f46e5' : '#94a3b8';
                 ctx2D.lineWidth = selectedItem && selectedItem.id === f.id ? 3 : 2;
                 ctx2D.fillRect(-wPx/2, -dPx/2, wPx, dPx);
@@ -1092,6 +1268,24 @@
                 ctx2D.strokeStyle = activeFloor === 'baixo' ? 'rgba(99, 102, 241, 0.7)' : 'rgba(139, 92, 246, 0.7)';
                 ctx2D.lineWidth = wallThicknessDefault * (scale2D * 0.5);
                 ctx2D.beginPath(); ctx2D.moveTo(p1.x, p1.y); ctx2D.lineTo(p2.x, p2.y); ctx2D.stroke();
+            }
+
+            // Linhas de pré-visualização do retângulo no andar ativo
+            if (currentTool === 'rect' && drawingRectStart) {
+                const p1 = worldToScreen(drawingRectStart.x, drawingRectStart.y);
+                const p2 = worldToScreen(currentMouseWorld.x, currentMouseWorld.y);
+                const rx = Math.min(p1.x, p2.x);
+                const ry = Math.min(p1.y, p2.y);
+                const rw = Math.abs(p2.x - p1.x);
+                const rh = Math.abs(p2.y - p1.y);
+
+                ctx2D.save();
+                ctx2D.strokeStyle = activeFloor === 'baixo' ? 'rgba(99, 102, 241, 0.8)' : 'rgba(139, 92, 246, 0.8)';
+                ctx2D.fillStyle = activeFloor === 'baixo' ? 'rgba(99, 102, 241, 0.1)' : 'rgba(139, 92, 246, 0.1)';
+                ctx2D.lineWidth = wallThicknessDefault * (scale2D * 0.5);
+                ctx2D.fillRect(rx, ry, rw, rh);
+                ctx2D.strokeRect(rx, ry, rw, rh);
+                ctx2D.restore();
             }
 
             // Ferramenta de Medição
@@ -1205,147 +1399,65 @@
 
             const standardGroundWallH = 280; 
 
-            // --- 1. RENDERIZAR PAREDES (BAIXO) ---
-            if (showFloorBaixo) {
-                project.walls.filter(w => w.floor === 'baixo').forEach(w => {
-                    const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
-                    const length = Math.hypot(dx, dy);
-                    if (length === 0) return;
-                    const angle = Math.atan2(dy, dx);
-                    const height = w.height || 280, thickness = w.thickness || 20;
+            // --- 1. RENDERIZAR PAREDES COM VÃOS (PORTAS E JANELAS) ---
+            function addWallSegments3D(w, mat, baseY) {
+                const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
+                const length = Math.hypot(dx, dy);
+                if (length === 0) return;
+                const angle = Math.atan2(dy, dx);
+                const height = w.height || 280, thickness = w.thickness || 20;
 
-                    const wallDoors = project.doors.filter(d => d.wallId === w.id && d.isHollow)
-                        .map(d => ({ offset: d.offset, width: d.width || 90, height: d.height || 210 }))
-                        .sort((a, b) => a.offset - b.offset);
-
-                    if (wallDoors.length === 0) {
-                        const mesh = new THREE.Mesh(new THREE.BoxGeometry(length, height, thickness), wallMatBaixo);
-                        mesh.castShadow = true; mesh.receiveShadow = true;
-                        mesh.position.set((w.x1 + w.x2) / 2, height / 2, (w.y1 + w.y2) / 2);
-                        mesh.rotation.y = -angle;
-                        houseGroup3D.add(mesh);
-                    } else {
-                        let currentOffset = 0;
-                        wallDoors.forEach(d => {
-                            const doorCenterDist = d.offset * length;
-                            const segLen = doorCenterDist - (d.width / 2) - currentOffset;
-                            if (segLen > 1) {
-                                const segCenter = currentOffset + segLen / 2;
-                                const mesh = new THREE.Mesh(new THREE.BoxGeometry(segLen, height, thickness), wallMatBaixo);
-                                mesh.castShadow = true; mesh.receiveShadow = true;
-                                mesh.position.set(segCenter - length / 2, height / 2, 0);
-                                
-                                const groupSeg = new THREE.Group();
-                                groupSeg.add(mesh);
-                                groupSeg.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
-                                groupSeg.rotation.y = -angle;
-                                houseGroup3D.add(groupSeg);
-                            }
-
-                            const topH = height - d.height;
-                            if (topH > 0) {
-                                const topMesh = new THREE.Mesh(new THREE.BoxGeometry(d.width, topH, thickness), wallMatBaixo);
-                                topMesh.castShadow = true; topMesh.receiveShadow = true;
-                                topMesh.position.set(doorCenterDist - length / 2, d.height + topH / 2, 0);
-                                
-                                const groupTop = new THREE.Group();
-                                groupTop.add(topMesh);
-                                groupTop.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
-                                groupTop.rotation.y = -angle;
-                                houseGroup3D.add(groupTop);
-                            }
-                            currentOffset = doorCenterDist + (d.width / 2);
-                        });
-
-                        const finalSegLen = length - currentOffset;
-                        if (finalSegLen > 1) {
-                            const segCenter = currentOffset + finalSegLen / 2;
-                            const mesh = new THREE.Mesh(new THREE.BoxGeometry(finalSegLen, height, thickness), wallMatBaixo);
-                            mesh.castShadow = true; mesh.receiveShadow = true;
-                            mesh.position.set(segCenter - length / 2, height / 2, 0);
-                            
-                            const groupFinal = new THREE.Group();
-                            groupFinal.add(mesh);
-                            groupFinal.position.set((w.x1 + w.x2) / 2, 0, (w.y1 + w.y2) / 2);
-                            groupFinal.rotation.y = -angle;
-                            houseGroup3D.add(groupFinal);
-                        }
-                    }
+                const openings = [];
+                project.doors.filter(d => d.wallId === w.id && d.isHollow).forEach(d => {
+                    const center = d.offset * length, width = d.width || 90, h = Math.min(d.height || 210, height);
+                    openings.push({ left: Math.max(0, center-width/2), right: Math.min(length, center+width/2), bottom: 0, top: h });
                 });
+                project.windows.filter(win => win.wallId === w.id && win.isHollow).forEach(win => {
+                    const center = win.offset * length, width = win.width || 120;
+                    const bottom = Math.max(0, win.sillHeight || 90), top = Math.min(height, bottom + (win.height || 120));
+                    if (top > bottom) openings.push({ left: Math.max(0, center-width/2), right: Math.min(length, center+width/2), bottom, top });
+                });
+
+                const xBreaks = [0, length];
+                openings.forEach(o => { xBreaks.push(o.left, o.right); });
+                xBreaks.sort((a,b)=>a-b);
+                const uniqueX = xBreaks.filter((v,i,a)=>i===0 || Math.abs(v-a[i-1])>0.01);
+
+                for (let i=0;i<uniqueX.length-1;i++) {
+                    const xa=uniqueX[i], xb=uniqueX[i+1], xm=(xa+xb)/2;
+                    if (xb-xa < 0.5) continue;
+                    const active = openings.filter(o => xm > o.left && xm < o.right);
+                    const yBreaks=[0,height];
+                    active.forEach(o=>yBreaks.push(o.bottom,o.top));
+                    yBreaks.sort((a,b)=>a-b);
+                    const uniqueY=yBreaks.filter((v,j,a)=>j===0 || Math.abs(v-a[j-1])>0.01);
+
+                    for(let j=0;j<uniqueY.length-1;j++){
+                        const ya=uniqueY[j], yb=uniqueY[j+1], ym=(ya+yb)/2;
+                        if(yb-ya<0.5) continue;
+                        if(active.some(o => ym > o.bottom && ym < o.top)) continue;
+
+                        const mesh=new THREE.Mesh(new THREE.BoxGeometry(xb-xa, yb-ya, thickness), mat);
+                        mesh.castShadow=true; mesh.receiveShadow=true;
+                        mesh.position.set((xa+xb)/2-length/2, baseY+(ya+yb)/2, 0);
+
+                        const group=new THREE.Group();
+                        group.add(mesh);
+                        group.position.set((w.x1+w.x2)/2,0,(w.y1+w.y2)/2);
+                        group.rotation.y=-angle;
+                        houseGroup3D.add(group);
+                    }
+                }
             }
 
-            // --- 2. RENDERIZAR PAREDES (CIMA) ---
-            if (showFloorCima) {
-                project.walls.filter(w => w.floor === 'cima').forEach(w => {
-                    const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
-                    const length = Math.hypot(dx, dy);
-                    if (length === 0) return;
-                    const angle = Math.atan2(dy, dx);
-                    const height = w.height || 280, thickness = w.thickness || 20;
-                    const baseY = standardGroundWallH;
-
-                    const wallDoors = project.doors.filter(d => d.wallId === w.id && d.isHollow)
-                        .map(d => ({ offset: d.offset, width: d.width || 90, height: d.height || 210 }))
-                        .sort((a, b) => a.offset - b.offset);
-
-                    if (wallDoors.length === 0) {
-                        const mesh = new THREE.Mesh(new THREE.BoxGeometry(length, height, thickness), wallMatCima);
-                        mesh.castShadow = true; mesh.receiveShadow = true;
-                        mesh.position.set((w.x1 + w.x2) / 2, baseY + height / 2, (w.y1 + w.y2) / 2);
-                        mesh.rotation.y = -angle;
-                        houseGroup3D.add(mesh);
-                    } else {
-                        let currentOffset = 0;
-                        wallDoors.forEach(d => {
-                            const doorCenterDist = d.offset * length;
-                            const segLen = doorCenterDist - (d.width / 2) - currentOffset;
-                            if (segLen > 1) {
-                                const segCenter = currentOffset + segLen / 2;
-                                const mesh = new THREE.Mesh(new THREE.BoxGeometry(segLen, height, thickness), wallMatCima);
-                                mesh.castShadow = true; mesh.receiveShadow = true;
-                                mesh.position.set(segCenter - length / 2, height / 2, 0);
-                                
-                                const groupSeg = new THREE.Group();
-                                groupSeg.add(mesh);
-                                groupSeg.position.set((w.x1 + w.x2) / 2, baseY, (w.y1 + w.y2) / 2);
-                                groupSeg.rotation.y = -angle;
-                                houseGroup3D.add(groupSeg);
-                            }
-
-                            const topH = height - d.height;
-                            if (topH > 0) {
-                                const topMesh = new THREE.Mesh(new THREE.BoxGeometry(d.width, topH, thickness), wallMatCima);
-                                topMesh.castShadow = true; topMesh.receiveShadow = true;
-                                topMesh.position.set(doorCenterDist - length / 2, d.height + topH / 2, 0);
-                                
-                                const groupTop = new THREE.Group();
-                                groupTop.add(topMesh);
-                                groupTop.position.set((w.x1 + w.x2) / 2, baseY, (w.y1 + w.y2) / 2);
-                                groupTop.rotation.y = -angle;
-                                houseGroup3D.add(groupTop);
-                            }
-                            currentOffset = doorCenterDist + (d.width / 2);
-                        });
-
-                        const finalSegLen = length - currentOffset;
-                        if (finalSegLen > 1) {
-                            const segCenter = currentOffset + finalSegLen / 2;
-                            const mesh = new THREE.Mesh(new THREE.BoxGeometry(finalSegLen, height, thickness), wallMatCima);
-                            mesh.castShadow = true; mesh.receiveShadow = true;
-                            mesh.position.set(segCenter - length / 2, height / 2, 0);
-                            
-                            const groupFinal = new THREE.Group();
-                            groupFinal.add(mesh);
-                            groupFinal.position.set((w.x1 + w.x2) / 2, baseY, (w.y1 + w.y2) / 2);
-                            groupFinal.rotation.y = -angle;
-                            houseGroup3D.add(groupFinal);
-                        }
-                    }
-                });
-            }
+            project.walls.filter(w => w.floor === 'baixo' && showFloorBaixo).forEach(w => {
+                addWallSegments3D(w, make3DMaterial(w, '#f8fafc'), 0);
+            });
+            project.walls.filter(w => w.floor === 'cima' && showFloorCima).forEach(w => {
+                addWallSegments3D(w, make3DMaterial(w, '#e2e8f0'), standardGroundWallH);
+            });
 
             // Portas e Janelas
-            const doorMat = new THREE.MeshStandardMaterial({ color: 0x0891b2, roughness: 0.4 });
             project.doors.forEach(d => {
                 if ((d.floor === 'baixo' && !showFloorBaixo) || (d.floor === 'cima' && !showFloorCima)) return;
                 const w = project.walls.find(item => item.id === d.wallId);
@@ -1355,13 +1467,16 @@
                 const pos = { x: w.x1 + dx * d.offset, y: w.y1 + dy * d.offset };
                 const doorH = d.height || 210, doorW = d.width || 90;
                 const baseY = d.floor === 'cima' ? standardGroundWallH : 0;
-                const mesh = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, (w.thickness || 20) + 2), doorMat);
+                const mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(doorW, doorH, (w.thickness || 20) + 2),
+                    make3DMaterial(d, '#0891b2', {roughness:0.4})
+                );
                 mesh.position.set(pos.x, baseY + doorH / 2, pos.y);
                 mesh.rotation.y = -angle;
+                mesh.castShadow = true; mesh.receiveShadow = true;
                 houseGroup3D.add(mesh);
             });
 
-            const winMat = new THREE.MeshStandardMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.4, roughness: 0.1 });
             project.windows.forEach(win => {
                 if ((win.floor === 'baixo' && !showFloorBaixo) || (win.floor === 'cima' && !showFloorCima)) return;
                 const w = project.walls.find(item => item.id === win.wallId);
@@ -1371,10 +1486,34 @@
                 const pos = { x: w.x1 + dx * win.offset, y: w.y1 + dy * win.offset };
                 const winH = win.height || 120, winW = win.width || 120, sill = win.sillHeight || 90;
                 const baseY = win.floor === 'cima' ? standardGroundWallH : 0;
-                const mesh = new THREE.Mesh(new THREE.BoxGeometry(winW, winH, (w.thickness || 20) + 4), winMat);
-                mesh.position.set(pos.x, baseY + sill + winH / 2, pos.y);
-                mesh.rotation.y = -angle;
-                houseGroup3D.add(mesh);
+
+                if (!win.isHollow) {
+                    const mesh = new THREE.Mesh(
+                        new THREE.BoxGeometry(winW, winH, (w.thickness || 20) + 4),
+                        make3DMaterial(win, '#38bdf8', {transparent:true, opacity:0.48, roughness:0.1})
+                    );
+                    mesh.position.set(pos.x, baseY + sill + winH / 2, pos.y);
+                    mesh.rotation.y = -angle;
+                    mesh.castShadow = true; mesh.receiveShadow = true;
+                    houseGroup3D.add(mesh);
+                } else {
+                    // Moldura do vão: o centro fica realmente aberto.
+                    const frameMat = make3DMaterial(win, win.color || '#38bdf8', {roughness:0.25});
+                    const t = 5, depth = (w.thickness || 20) + 6;
+                    const parts = [
+                        [winW, t, depth, 0, sill],
+                        [winW, t, depth, 0, sill + winH],
+                        [t, winH, depth, -winW/2, sill + winH/2],
+                        [t, winH, depth, winW/2, sill + winH/2]
+                    ];
+                    parts.forEach(([pw,ph,pd,px,py]) => {
+                        const mesh=new THREE.Mesh(new THREE.BoxGeometry(pw,ph,pd),frameMat);
+                        mesh.position.set(pos.x,baseY+py,pos.y);
+                        mesh.rotation.y=-angle;
+                        mesh.castShadow=true; mesh.receiveShadow=true;
+                        houseGroup3D.add(mesh);
+                    });
+                }
             });
 
             let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -1491,7 +1630,7 @@
                 if (f.type === 'sofa') color = 0xfbbf24;
                 if (f.type === 'table') color = 0x34d399;
                 if (f.type === 'kitchen') color = 0x22d3ee;
-                const mesh = new THREE.Mesh(new THREE.BoxGeometry(f.width, f.height || 60, f.depth), new THREE.MeshStandardMaterial({ color, roughness: 0.4 }));
+                const mesh = new THREE.Mesh(new THREE.BoxGeometry(f.width, f.height || 60, f.depth), make3DMaterial(f, `#${color.toString(16).padStart(6,'0')}`, {roughness:0.4}));
                 mesh.castShadow = true; mesh.receiveShadow = true;
                 mesh.position.y = (f.height || 60) / 2;
                 group.add(mesh);
@@ -1550,6 +1689,7 @@
         }
 
         function saveAndSync() {
+            normalizeProjectAppearance();
             localStorage.setItem('arquistudio_pro_project_sobrado', JSON.stringify(project));
             if (is3DInitialized) update3DScene();
         }
@@ -1589,6 +1729,7 @@
                             project[key].forEach(item => { if (!item.floor) item.floor = 'baixo'; });
                         }
                     });
+                    normalizeProjectAppearance();
                     document.getElementById('project-name-input').value = project.name;
                     document.getElementById('project-title-display').innerText = project.name;
                     saveAndSync(); showToast('Projeto de sobrado importado!');
