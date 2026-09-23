@@ -48,7 +48,7 @@
             </div>
             <div>
                 <h1 class="font-bold text-sm md:text-base tracking-tight flex items-center gap-2 text-slate-900">
-                    ArquiStudio Pro <span class="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-200 font-medium">Vãos & Telhados Pro</span>
+                    ArquiStudio Pro <span class="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full border border-indigo-200 font-medium">Vãos & Tetos Pro</span>
                 </h1>
                 <p class="text-xs text-slate-500" id="project-title-display">Projeto sem título</p>
             </div>
@@ -204,7 +204,7 @@
             <div id="wrapper-3d" class="relative h-full hidden bg-slate-950" style="width: 0%; flex: 0 0 0%;">
                 <div id="canvas-3d-host" class="w-full h-full"></div>
                 
-                <div class="absolute top-6 right-6 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl p-4 flex flex-col gap-3.5 z-10 text-xs w-64 text-slate-200">
+                <div class="absolute top-6 right-6 bg-slate-900/90 backdrop-blur-md border border-slate-800 rounded-2xl shadow-2xl p-4 flex flex-col gap-3.5 z-10 text-xs w-72 text-slate-200">
                     <h3 class="font-bold text-slate-100 uppercase tracking-wider flex items-center gap-2">
                         <i data-lucide="sun" class="w-4 h-4 text-amber-400"></i> Iluminação & Cobertura
                     </h3>
@@ -232,17 +232,20 @@
                         <input type="range" id="sun-time" min="6" max="19" step="0.5" value="12" class="w-full accent-indigo-500 cursor-pointer" oninput="updateLighting()">
                     </div>
 
-                    <div class="space-y-1.5">
-                        <div class="flex justify-between text-slate-400">
-                            <span>Cobertura / Telhado</span>
+                    <!-- Seletor de Telhados Prontos (5 Exemplos) -->
+                    <div class="space-y-1.5 border-t border-slate-800 pt-3">
+                        <div class="flex justify-between text-slate-300 font-semibold">
+                            <span class="flex items-center gap-1.5"><i data-lucide="home" class="w-4 h-4 text-amber-500"></i> Modelo de Teto / Cobertura</span>
                         </div>
-                        <select id="roof-mode" onchange="update3DScene()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-indigo-500">
-                            <option value="transparent">Transparente (Corte)</option>
-                            <option value="none">Sem Teto (Aberto)</option>
-                            <option value="flat">Laje Plana Coberta</option>
-                            <option value="gable">Telhado Duas Águas (Inclinado)</option>
-                            <option value="shed">Telhado Uma Água (Shed)</option>
+                        <select id="roof-mode" onchange="update3DScene()" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs focus:outline-none focus:border-indigo-500 font-medium">
+                            <option value="none">1. Sem Teto (Aberto)</option>
+                            <option value="flat">2. Laje Plana Coberta</option>
+                            <option value="gable">3. Telhado Duas Águas (Clássico)</option>
+                            <option value="hip">4. Telhado Quatro Águas (Hip Roof)</option>
+                            <option value="shed">5. Telhado Uma Água (Shed / Rampa)</option>
+                            <option value="mansard">6. Telhado Mansarda (Gambrel)</option>
                         </select>
+                        <p class="text-[10px] text-slate-400">Escolha entre 5 modelos prontos adaptados automaticamente ao perímetro da planta.</p>
                     </div>
                 </div>
 
@@ -552,12 +555,10 @@
             return Math.round(val / gridSize) * gridSize;
         }
 
-        // --- Nova Lógica de Encaixe Automático (Snap de Quinas) ---
         function getSnappedPoint(x, y, threshold = 25) {
             let snappedX = snapCoord(x);
             let snappedY = snapCoord(y);
 
-            // Verifica extremidades de paredes existentes
             for (let w of project.walls) {
                 if (Math.hypot(w.x1 - snappedX, w.y1 - snappedY) < threshold) {
                     snappedX = w.x1;
@@ -974,7 +975,7 @@
             }
         }
 
-        // --- Three.js 3D Engine com Telhados Automatizados ---
+        // --- Three.js 3D Engine com os 5 Exemplos de Tetos Prontos ---
         function init3DIfNeeded() {
             if (is3DInitialized) { update3DScene(); return; }
 
@@ -1067,6 +1068,7 @@
             const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.7, metalness: 0.05 });
             const floorMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.5, metalness: 0.1 });
             const roofTileMat = new THREE.MeshStandardMaterial({ color: 0x993d28, roughness: 0.6 }); // Telha Cerâmica
+            const concreteRoofMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.6 }); // Concreto/Laje
 
             project.walls.forEach(w => {
                 const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
@@ -1190,41 +1192,83 @@
                 houseGroup3D.add(floorMesh);
 
                 const roofMode = document.getElementById('roof-mode').value;
+                const standardWallH = 280;
+
+                // --- 5 EXEMPLOS DE TETOS PRONTOS PARA ENCAIXE ---
                 if (roofMode === 'flat') {
-                    const roofMesh = new THREE.Mesh(new THREE.PlaneGeometry(width, depth), wallMat);
-                    roofMesh.rotation.x = Math.PI / 2;
-                    roofMesh.position.set(cx, 280, cz);
-                    roofMesh.receiveShadow = true;
+                    // 1. Laje Plana Coberta
+                    const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(width, 15, depth), concreteRoofMat);
+                    roofMesh.position.set(cx, standardWallH + 7.5, cz);
+                    roofMesh.castShadow = true; roofMesh.receiveShadow = true;
                     houseGroup3D.add(roofMesh);
+
                 } else if (roofMode === 'gable') {
-                    // Exemplo de Telhado Duas Águas (Gable Roof)
+                    // 2. Telhado Duas Águas (Gable Roof Clássico)
                     const roofGroup = new THREE.Group();
                     const roofW = width + 60, roofL = depth + 60;
-                    const peakHeight = 100;
+                    const peakHeight = 110;
+                    const slopeGeo = new THREE.BoxGeometry(roofW, 12, Math.hypot(roofL/2, peakHeight));
                     
-                    const slopeGeo = new THREE.BoxGeometry(roofW, 10, Math.hypot(roofL/2, peakHeight));
                     const leftSlope = new THREE.Mesh(slopeGeo, roofTileMat);
-                    leftSlope.position.set(0, 280 + peakHeight/2, -roofL/4);
+                    leftSlope.position.set(0, peakHeight/2, -roofL/4);
                     leftSlope.rotation.x = Math.atan2(peakHeight, roofL/2);
-                    leftSlope.castShadow = true;
+                    leftSlope.castShadow = true; leftSlope.receiveShadow = true;
                     roofGroup.add(leftSlope);
 
                     const rightSlope = new THREE.Mesh(slopeGeo, roofTileMat);
-                    rightSlope.position.set(0, 280 + peakHeight/2, roofL/4);
+                    rightSlope.position.set(0, peakHeight/2, roofL/4);
                     rightSlope.rotation.x = -Math.atan2(peakHeight, roofL/2);
-                    rightSlope.castShadow = true;
+                    rightSlope.castShadow = true; rightSlope.receiveShadow = true;
                     roofGroup.add(rightSlope);
 
-                    roofGroup.position.set(cx, 0, cz);
+                    roofGroup.position.set(cx, standardWallH, cz);
                     houseGroup3D.add(roofGroup);
+
+                } else if (roofMode === 'hip') {
+                    // 3. Telhado Quatro Águas (Hip Roof)
+                    const roofGroup = new THREE.Group();
+                    const rw = width + 80, rd = depth + 80;
+                    const h = 100;
+                    
+                    const slopeGeo = new THREE.ConeGeometry(Math.max(rw, rd)*0.7, h, 4);
+                    const hipMesh = new THREE.Mesh(slopeGeo, roofTileMat);
+                    hipMesh.scale.set(rw / (Math.max(rw, rd)*0.7), 1, rd / (Math.max(rw, rd)*0.7));
+                    hipMesh.position.set(0, h/2, 0);
+                    hipMesh.rotation.y = Math.PI / 4;
+                    hipMesh.castShadow = true; hipMesh.receiveShadow = true;
+                    roofGroup.add(hipMesh);
+
+                    roofGroup.position.set(cx, standardWallH, cz);
+                    houseGroup3D.add(roofGroup);
+
                 } else if (roofMode === 'shed') {
-                    // Exemplo de Telhado Uma Água (Shed Roof)
-                    const shedGeo = new THREE.BoxGeometry(width + 60, 10, depth + 60);
+                    // 4. Telhado Uma Água (Shed Roof / Rampa Única)
+                    const shedGeo = new THREE.BoxGeometry(width + 80, 12, depth + 80);
                     const shedMesh = new THREE.Mesh(shedGeo, roofTileMat);
-                    shedMesh.position.set(cx, 280 + 50, cz);
-                    shedMesh.rotation.x = 0.15; // Leve inclinação
-                    shedMesh.castShadow = true;
+                    shedMesh.position.set(cx, standardWallH + 60, cz);
+                    shedMesh.rotation.x = 0.18; // Inclinação frontal
+                    shedMesh.castShadow = true; shedMesh.receiveShadow = true;
                     houseGroup3D.add(shedMesh);
+
+                } else if (roofMode === 'mansard') {
+                    // 5. Telhado Mansarda / Gambrel (Dupla Inclinação Estilo Sótão)
+                    const roofGroup = new THREE.Group();
+                    const rw = width + 60, rd = depth + 60;
+                    
+                    const lowerGeo = new THREE.BoxGeometry(rw, 50, rd);
+                    const lowerMesh = new THREE.Mesh(lowerGeo, roofTileMat);
+                    lowerMesh.position.set(0, 25, 0);
+                    lowerMesh.rotation.x = 0.25; lowerMesh.castShadow = true;
+                    roofGroup.add(lowerMesh);
+
+                    const upperGeo = new THREE.BoxGeometry(rw, 40, rd * 0.6);
+                    const upperMesh = new THREE.Mesh(upperGeo, roofTileMat);
+                    upperMesh.position.set(0, 65, 0);
+                    upperMesh.castShadow = true;
+                    roofGroup.add(upperMesh);
+
+                    roofGroup.position.set(cx, standardWallH, cz);
+                    houseGroup3D.add(roofGroup);
                 }
             }
 
