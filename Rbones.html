@@ -256,6 +256,21 @@
 
     <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
 
+    <!-- SEÇÃO DE LUZ AMBIENTE / PRESETS DE ILUMINAÇÃO -->
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <label style="font-size: 11px;"><strong>Iluminação Ambiente:</strong></label>
+        <select id="ambient-light-select" style="font-size: 11px; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px;">
+            <option value="neutral">💡 Neutra / Padrão</option>
+            <option value="daylight">☀️ Luz Diurna / Dia Ensolarado</option>
+            <option value="sunset">🌅 Pôr do Sol / Golden Hour</option>
+            <option value="night">🌙 Luz Noturna / Luar</option>
+            <option value="studio">🎬 Estúdio / Softbox</option>
+            <option value="cyberpunk">🛈 Neon / Cyberpunk</option>
+        </select>
+    </div>
+
+    <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
+
     <label style="font-size: 11px;"><strong>Sessão no Navegador:</strong></label>
     <div class="btn-group">
         <button id="btn-save-session" style="background: #2e7d32; color: #fff;">💾 Salvar Projeto</button>
@@ -383,10 +398,113 @@ document.body.appendChild(renderer.domElement);
 const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.target.set(0, 90, 0);
 
-scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+// GERENCIAMENTO DE ILUMINAÇÃO DINÂMICA COM PRESETS
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
+scene.add(ambientLight);
+
 const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
 dirLight.position.set(100, 200, 150);
 scene.add(dirLight);
+
+// Grupo para armazenar luzes secundárias criadas dinamicamente pelos presets (Softbox, Cyberpunk, etc.)
+const extraLightsGroup = new THREE.Group();
+scene.add(extraLightsGroup);
+
+function applyLightingPreset(preset) {
+    // Limpar luzes extras de presets anteriores
+    while (extraLightsGroup.children.length > 0) {
+        const obj = extraLightsGroup.children[0];
+        extraLightsGroup.remove(obj);
+        if (obj.dispose) obj.dispose();
+    }
+
+    switch (preset) {
+        case 'daylight':
+            // Céu azulado suave com sol amarelo e intenso
+            ambientLight.color.setHex(0xcae5ff);
+            ambientLight.intensity = 0.9;
+            dirLight.color.setHex(0xfffaed);
+            dirLight.intensity = 2.0;
+            dirLight.position.set(120, 250, 100);
+            break;
+
+        case 'sunset':
+            // Pôr do sol: tons alaranjados e avermelhados com luz solar rasante
+            ambientLight.color.setHex(0xffaa77);
+            ambientLight.intensity = 0.7;
+            dirLight.color.setHex(0xff5500);
+            dirLight.intensity = 2.5;
+            dirLight.position.set(-200, 40, -100);
+            break;
+
+        case 'night':
+            // Luar noturno: iluminação tênue em tom azul frio
+            ambientLight.color.setHex(0x112244);
+            ambientLight.intensity = 0.4;
+            dirLight.color.setHex(0x6688ff);
+            dirLight.intensity = 0.8;
+            dirLight.position.set(-80, 180, -80);
+            break;
+
+        case 'studio':
+            // Estúdio / Softbox: Luz de preenchimento de três pontos (Key, Fill, Rim)
+            ambientLight.color.setHex(0xffffff);
+            ambientLight.intensity = 0.6;
+            
+            // Key light
+            dirLight.color.setHex(0xffffff);
+            dirLight.intensity = 1.2;
+            dirLight.position.set(150, 150, 150);
+
+            // Fill light
+            const fillLight = new THREE.DirectionalLight(0xddeeff, 0.6);
+            fillLight.position.set(-150, 100, 150);
+            extraLightsGroup.add(fillLight);
+
+            // Back / Rim light
+            const rimLight = new THREE.DirectionalLight(0xffffff, 1.0);
+            rimLight.position.set(0, 150, -200);
+            extraLightsGroup.add(rimLight);
+            break;
+
+        case 'cyberpunk':
+            // Neon / Cyberpunk: contraste vibrante entre Rosa Magenta e Ciano
+            ambientLight.color.setHex(0x220033);
+            ambientLight.intensity = 0.5;
+
+            // Luz direcional Ciano
+            dirLight.color.setHex(0x00ffff);
+            dirLight.intensity = 1.8;
+            dirLight.position.set(-150, 100, 100);
+
+            // Luz pontual Magenta
+            const magentaPoint = new THREE.PointLight(0xff007f, 3.0, 500);
+            magentaPoint.position.set(150, 80, -50);
+            extraLightsGroup.add(magentaPoint);
+
+            // Luz de preenchimento Azul Elétrico
+            const bluePoint = new THREE.PointLight(0x0055ff, 2.0, 400);
+            bluePoint.position.set(0, -50, 150);
+            extraLightsGroup.add(bluePoint);
+            break;
+
+        case 'neutral':
+        default:
+            // Preset Padrão: Luz branca equilibrada
+            ambientLight.color.setHex(0xffffff);
+            ambientLight.intensity = 1.2;
+            dirLight.color.setHex(0xffffff);
+            dirLight.intensity = 1.5;
+            dirLight.position.set(100, 200, 150);
+            break;
+    }
+}
+
+// Event listener para troca de preset de luz ambiente
+document.getElementById('ambient-light-select').addEventListener('change', (e) => {
+    applyLightingPreset(e.target.value);
+    saveEnvironmentSettings();
+});
 
 const SETTINGS_KEY = 'model_animator_settings';
 const SESSION_PROJECT_KEY = 'model_animator_project_session';
@@ -398,6 +516,7 @@ function saveEnvironmentSettings() {
         showPickers: document.getElementById('chk-pickers').checked,
         pickerRadius: document.getElementById('picker-radius-slider').value,
         meshOpacity: document.getElementById('opacity-slider').value,
+        ambientPreset: document.getElementById('ambient-light-select').value,
         cameraPos: [camera.position.x, camera.position.y, camera.position.z],
         cameraTarget: [orbit.target.x, orbit.target.y, orbit.target.z]
     };
@@ -421,6 +540,11 @@ function loadEnvironmentSettings() {
         if (settings.showPickers !== undefined) document.getElementById('chk-pickers').checked = settings.showPickers;
         if (settings.pickerRadius !== undefined) document.getElementById('picker-radius-slider').value = settings.pickerRadius;
         if (settings.meshOpacity !== undefined) document.getElementById('opacity-slider').value = settings.meshOpacity;
+
+        if (settings.ambientPreset !== undefined) {
+            document.getElementById('ambient-light-select').value = settings.ambientPreset;
+            applyLightingPreset(settings.ambientPreset);
+        }
 
         if (settings.cameraPos) camera.position.set(...settings.cameraPos);
         if (settings.cameraTarget) {
@@ -678,7 +802,6 @@ function loadFBXFromArrayBuffer(arrayBuffer) {
 
 function loadGLTFFromArrayBuffer(arrayBuffer) {
     const loader = new GLTFLoader();
-    // parse() decodifica diretamente o arquivo binário .glb com sua geometria e imagem de textura inclusas
     loader.parse(arrayBuffer, '', (gltf) => {
         processLoadedModel(gltf.scene, gltf.animations || []);
     });
