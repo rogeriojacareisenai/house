@@ -278,7 +278,6 @@
         <div class="menu-content">
             <div class="control-block">
                 <label>Carregar Modelo (OBJ/FBX/glTF/GLB):</label>
-                <!-- ATUALIZADO: Aceita .obj -->
                 <input type="file" id="file-input" accept=".obj, .fbx, .gltf, .glb">
                 <span id="model-status" class="status-text">Nenhum modelo carregado.</span>
             </div>
@@ -414,6 +413,7 @@
             </div>
 
             <button id="btn-select-root" style="background: #1976d2; color: #fff; font-size: 11px; margin-top: 4px;">🦴 Selecionar Raiz (Todo o Esqueleto)</button>
+            <span style="font-size: 10px; opacity: 0.8; margin-top: 2px;">Dica: Use <b>Shift + Clique</b> para selecionar múltiplos bones.</span>
         </div>
     </details>
 
@@ -490,7 +490,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'; // ATUALIZADO: Import do OBJLoader
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
@@ -808,16 +808,105 @@ function restoreState(snapshotMap) {
     applyPoseForFrame(currentFrame);
 }
 
+// OESTRUTURA DE SELEÇÃO MÚLTIPLA E PIVÔ
+let selectedBones = [];
+const pivotObject = new THREE.Object3D();
+scene.add(pivotObject);
+
+const initialStates = new Map();
+let prevPivotPosition = new THREE.Vector3();
+let prevPivotQuaternion = new THREE.Quaternion();
+let prevPivotScale = new THREE.Vector3();
+
 const transformControls = new TransformControls(camera, renderer.domElement);
 transformControls.setMode('translate');
+
 transformControls.addEventListener('dragging-changed', (event) => {
     orbit.enabled = !event.value;
-    if (event.value) pushState();
+    if (event.value) {
+        pushState();
+        // Salva estados iniciais do pivô e dos objetos selecionados
+        prevPivotPosition.copy(pivotObject.position);
+        prevPivotQuaternion.copy(pivotObject.quaternion);
+        prevPivotScale.copy(pivotObject.scale);
+
+        initialStates.clear();
+        selectedBones.forEach(bone => {
+            initialStates.set(bone, {
+                position: bone.position.clone(),
+                quaternion: bone.quaternion.clone(),
+                scale: bone.scale.clone(),
+                worldPosition: bone.getWorldPosition(new THREE.Vector3()),
+                worldQuaternion: bone.getWorldQuaternion(new THREE.Quaternion()),
+                worldScale: bone.getWorldScale(new THREE.Vector3())
+            });
+        });
+    }
 });
 
 transformControls.addEventListener('change', () => {
-    updateUIInputs();
-    if (transformControls.dragging) {
+    if (transformControls.dragging && selectedBones.length > 0) {
+        const mode = transformControls.getMode();
+
+        if (mode === 'translate') {
+            const deltaPos = pivotObject.position.clone().sub(prevPivotPosition);
+            selectedBones.forEach(bone => {
+                if (bone.parent) {
+                    const localDelta = deltaPos.clone();
+                    bone.parent.worldToLocal(localDelta.add(bone.parent.getWorldPosition(new THREE.Vector3())));
+                    localDelta.sub(bone.parent.position); // Ajuste relativo
+                }
+                bone.position.add(deltaPos);
+            });
+            prevPivotPosition.copy(pivotObject.position);
+        } else if (mode === 'rotate') {
+            const deltaRot = pivotObject.quaternion.clone().multiply(prevPivotQuaternion.clone().invert());
+            selectedBones.forEach(bone => {
+                const init = initialStates.get(bone);
+                if (init) {
+                    // Rotação em relação ao centro do pivô
+                    const worldPos = init.worldPosition.clone().sub(pivotObject.position);
+                    worldPos.applyQuaternion(deltaRot);
+                    worldPos.add(pivotObject.position);
+
+                    if (bone.parent) {
+                        bone.parent.worldToLocal(worldPos);
+                    }
+                    bone.position.copy(worldPos);
+
+                    const targetWorldRot = deltaRot.clone().multiply(init.worldQuaternion);
+                    if (bone.parent) {
+                        const parentWorldRot = bone.parent.getWorldQuaternion(new THREE.Quaternion());
+                        bone.quaternion.copy(parentWorldRot.invert().multiply(targetWorldRot));
+                    } else {
+                        bone.quaternion.copy(targetWorldRot);
+                    }
+                }
+            });
+        } else if (mode === 'scale') {
+            const scaleFactor = new THREE.Vector3(
+                pivotObject.scale.x / prevPivotScale.x,
+                pivotObject.scale.y / prevPivotScale.y,
+                pivotObject.scale.z / prevPivotScale.z
+            );
+
+            selectedBones.forEach(bone => {
+                const init = initialStates.get(bone);
+                if (init) {
+                    const localPos = init.worldPosition.clone().sub(pivotObject.position);
+                    localPos.multiply(scaleFactor);
+                    const newWorldPos = pivotObject.position.clone().add(localPos);
+
+                    if (bone.parent) {
+                        bone.parent.worldToLocal(newWorldPos);
+                    }
+                    bone.position.copy(newWorldPos);
+                    bone.scale.copy(init.scale.clone().multiply(scaleFactor));
+                }
+            });
+        }
+
+        updateUIInputs();
         saveKeyframe(currentFrame, false, false);
     }
 });
@@ -826,7 +915,6 @@ scene.add(transformControls);
 let characterGroup = null;
 let skeletonHelper = null;
 let bonePickers = [];
-let selectedBone = null;
 let boneMap = new Map();
 let allBones = [];
 let originalMaterials = new Map();
@@ -905,7 +993,6 @@ let targetFPS = 12;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-// ATUALIZADO: Processamento de leitor para OBJ e formatos binários
 document.getElementById('file-input').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -1003,7 +1090,7 @@ function processLoadedModel(model, modelAnimations = []) {
     saveKeyframe(0, true, false);
     buildFlashTimelineUI();
     selectFrame(0);
-    selectBone(characterGroup);
+    selectBone(characterGroup, false);
     updateVisibility();
 }
 
@@ -1094,7 +1181,7 @@ function applyRenderMode(mode) {
 
             case 'gold':
                 child.material = new THREE.MeshStandardMaterial({
-                    color: 0xffd700,
+                    color: 0xffffd700,
                     metalness: 0.9,
                     roughness: 0.2,
                     transparent: opacity < 1.0,
@@ -1179,7 +1266,6 @@ function loadGLTFFromArrayBuffer(arrayBuffer) {
     });
 }
 
-// ATUALIZADO: Função para carregar modelo .OBJ
 function loadOBJFromText(textData) {
     const loader = new OBJLoader();
     const obj = loader.parse(textData);
@@ -1211,12 +1297,11 @@ function clearCurrentModel() {
     undoStack.length = 0;
     redoStack.length = 0;
     transformControls.detach();
-    selectedBone = null;
+    selectedBones = [];
     mixer = null;
     activeAction = null;
     animations = [];
     
-    // Limpa texturas
     Object.keys(loadedTextures).forEach(k => loadedTextures[k] = null);
     document.getElementById('texture-status').innerText = "Texturas originais preservadas.";
 
@@ -1229,44 +1314,88 @@ function updateHelpers() {
         const bone = boneMap.get(picker);
         if (bone) {
             bone.getWorldPosition(picker.position);
-            picker.material.color.setHex(bone === selectedBone ? 0x00ff00 : 0xffcc00);
+            picker.material.color.setHex(selectedBones.includes(bone) ? 0x00ff00 : 0xffcc00);
         }
     });
 }
 
-function selectBone(bone) {
-    selectedBone = bone;
-    transformControls.attach(bone);
-    
+function selectBone(bone, multiSelect = false) {
+    if (!multiSelect) {
+        selectedBones = [bone];
+    } else {
+        const index = selectedBones.indexOf(bone);
+        if (index > -1) {
+            selectedBones.splice(index, 1);
+        } else {
+            selectedBones.push(bone);
+        }
+    }
+
+    if (selectedBones.length === 0) {
+        transformControls.detach();
+        document.getElementById('bone-details').style.display = 'none';
+        return;
+    }
+
+    // Calcula o centro médio dos bones selecionados para reposicionar o pivô
+    const avgPosition = new THREE.Vector3();
+    selectedBones.forEach(b => {
+        avgPosition.add(b.getWorldPosition(new THREE.Vector3()));
+    });
+    avgPosition.divideScalar(selectedBones.length);
+
+    pivotObject.position.copy(avgPosition);
+    pivotObject.rotation.set(0, 0, 0);
+    pivotObject.scale.set(1, 1, 1);
+
+    transformControls.attach(pivotObject);
+
     const boneDetails = document.getElementById('bone-details');
     boneDetails.style.display = 'block';
     boneDetails.open = true;
     document.getElementById('bone-panel').style.display = 'flex';
 
-    document.getElementById('selected-bone-name').innerText = (bone === characterGroup) ? 'Raiz (Todo o Esqueleto)' : (bone.name || 'Osso Selecionado');
+    if (selectedBones.length === 1) {
+        const singleBone = selectedBones[0];
+        document.getElementById('selected-bone-name').innerText = (singleBone === characterGroup) ? 'Raiz (Todo o Esqueleto)' : (singleBone.name || 'Osso Selecionado');
+    } else {
+        document.getElementById('selected-bone-name').innerText = `${selectedBones.length} Bones Selecionados`;
+    }
+
     updateUIInputs();
 }
 
 document.getElementById('btn-select-root').addEventListener('click', () => {
-    if (characterGroup) selectBone(characterGroup);
+    if (characterGroup) selectBone(characterGroup, false);
 });
 
 function updateUIInputs() {
-    if (!selectedBone) return;
-    document.getElementById('pos-x').value = selectedBone.position.x.toFixed(2);
-    document.getElementById('pos-y').value = selectedBone.position.y.toFixed(2);
-    document.getElementById('pos-z').value = selectedBone.position.z.toFixed(2);
-    document.getElementById('rot-x').value = THREE.MathUtils.radToDeg(selectedBone.rotation.x).toFixed(0);
-    document.getElementById('rot-y').value = THREE.MathUtils.radToDeg(selectedBone.rotation.y).toFixed(0);
-    document.getElementById('rot-z').value = THREE.MathUtils.radToDeg(selectedBone.rotation.z).toFixed(0);
+    if (selectedBones.length === 0) return;
+    const target = selectedBones.length === 1 ? selectedBones[0] : pivotObject;
+
+    document.getElementById('pos-x').value = target.position.x.toFixed(2);
+    document.getElementById('pos-y').value = target.position.y.toFixed(2);
+    document.getElementById('pos-z').value = target.position.z.toFixed(2);
+    document.getElementById('rot-x').value = THREE.MathUtils.radToDeg(target.rotation.x).toFixed(0);
+    document.getElementById('rot-y').value = THREE.MathUtils.radToDeg(target.rotation.y).toFixed(0);
+    document.getElementById('rot-z').value = THREE.MathUtils.radToDeg(target.rotation.z).toFixed(0);
 }
 
 ['pos-x', 'pos-y', 'pos-z'].forEach((id, index) => {
     const inputEl = document.getElementById(id);
     inputEl.addEventListener('focus', () => pushState());
     inputEl.addEventListener('input', (e) => {
-        if (!selectedBone) return;
-        selectedBone.position[['x', 'y', 'z'][index]] = parseFloat(e.target.value) || 0;
+        if (selectedBones.length === 0) return;
+        const val = parseFloat(e.target.value) || 0;
+        const axis = ['x', 'y', 'z'][index];
+
+        if (selectedBones.length === 1) {
+            selectedBones[0].position[axis] = val;
+        } else {
+            const delta = val - pivotObject.position[axis];
+            pivotObject.position[axis] = val;
+            selectedBones.forEach(b => b.position[axis] += delta);
+        }
         saveKeyframe(currentFrame, false, false);
     });
 });
@@ -1275,8 +1404,17 @@ function updateUIInputs() {
     const inputEl = document.getElementById(id);
     inputEl.addEventListener('focus', () => pushState());
     inputEl.addEventListener('input', (e) => {
-        if (!selectedBone) return;
-        selectedBone.rotation[['x', 'y', 'z'][index]] = THREE.MathUtils.degToRad(parseFloat(e.target.value) || 0);
+        if (selectedBones.length === 0) return;
+        const val = THREE.MathUtils.degToRad(parseFloat(e.target.value) || 0);
+        const axis = ['x', 'y', 'z'][index];
+
+        if (selectedBones.length === 1) {
+            selectedBones[0].rotation[axis] = val;
+        } else {
+            const delta = val - pivotObject.rotation[axis];
+            pivotObject.rotation[axis] = val;
+            selectedBones.forEach(b => b.rotation[axis] += delta);
+        }
         saveKeyframe(currentFrame, false, false);
     });
 });
@@ -1604,7 +1742,10 @@ window.addEventListener('pointerdown', (event) => {
     const intersects = raycaster.intersectObjects(bonePickers.filter(p => p.visible));
     if (intersects.length > 0) {
         const targetBone = boneMap.get(intersects[0].object);
-        if (targetBone) selectBone(targetBone);
+        if (targetBone) {
+            const multiSelect = event.shiftKey || event.ctrlKey;
+            selectBone(targetBone, multiSelect);
+        }
     }
 });
 
