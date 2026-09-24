@@ -18,6 +18,7 @@
             --keyframe-bg: #c0c0c0;
             --keyframe-dot: #000000;
             --input-bg: #222;
+            --tween-line-color: #800020; /* Cor Vermelho-Vinho para Interpolação */
         }
 
         body.light-theme {
@@ -33,6 +34,7 @@
             --keyframe-bg: #a0a0a0;
             --keyframe-dot: #111111;
             --input-bg: #ffffff;
+            --tween-line-color: #800020;
         }
 
         body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); user-select: none; transition: background-color 0.3s; }
@@ -198,6 +200,19 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+
+        /* LINHA DE INTERPOLAÇÃO (VERMELHO VINHO) */
+        .frame-cell.is-interpolated::before {
+            content: '';
+            position: absolute;
+            top: calc(50% - 2px);
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--tween-line-color);
+            z-index: 1;
         }
 
         .frame-cell.active-frame {
@@ -285,7 +300,8 @@
         <button id="btn-play">► Play</button>
         <button id="btn-add-keyframe" style="background: #2e7d32;">F6 - Keyframe</button>
         <button id="btn-clear-keyframe" style="background: #c62828;">F7 - Limpar</button>
-        <button id="btn-undo" title="Desfazer (Ctrl+Z)">↩ Redo/Undo</button>
+        <button id="btn-undo" title="Desfazer (Ctrl+Z)">↩ Undo</button>
+        <button id="btn-center-scene" style="background: #6a1b9a;" title="Centralizar Visualização da Cena">🎯 Centralizar Cena</button>
         
         <div class="timeline-field">
             <label for="fps-input">FPS:</label>
@@ -368,13 +384,12 @@ function pushState() {
     });
     undoStack.push(snapshot);
     if (undoStack.length > MAX_HISTORY) undoStack.shift();
-    redoStack.length = 0; // Limpa o redo quando uma nova ação ocorre
+    redoStack.length = 0;
 }
 
 function undo() {
     if (undoStack.length === 0) return;
 
-    // Salva o estado atual no redoStack
     const currentSnapshot = new Map();
     keyframesMap.forEach((pose, frameIdx) => {
         const poseCopy = pose.map(p => ({
@@ -386,7 +401,6 @@ function undo() {
     });
     redoStack.push(currentSnapshot);
 
-    // Recupera o último estado
     const previousState = undoStack.pop();
     restoreState(previousState);
 }
@@ -394,7 +408,6 @@ function undo() {
 function redo() {
     if (redoStack.length === 0) return;
 
-    // Salva o estado atual no undoStack
     const currentSnapshot = new Map();
     keyframesMap.forEach((pose, frameIdx) => {
         const poseCopy = pose.map(p => ({
@@ -406,7 +419,6 @@ function redo() {
     });
     undoStack.push(currentSnapshot);
 
-    // Recupera o estado do redo
     const nextState = redoStack.pop();
     restoreState(nextState);
 }
@@ -431,7 +443,7 @@ transformControls.setMode('translate');
 transformControls.addEventListener('dragging-changed', (event) => {
     orbit.enabled = !event.value;
     if (event.value) {
-        pushState(); // Salva o estado quando começa a arrastar
+        pushState();
     }
 });
 
@@ -677,11 +689,33 @@ function applyPoseForFrame(frameIdx) {
 
 function updateTimelineGrid() {
     const cells = document.querySelectorAll('.frame-cell');
+    const sortedFrames = Array.from(keyframesMap.keys()).sort((a, b) => a - b);
+
     cells.forEach((cell, idx) => {
         cell.classList.toggle('active-frame', idx === currentFrame);
         cell.classList.toggle('has-keyframe', keyframesMap.has(idx));
+
+        // Verifica se o frame está dentro do intervalo de interpolação entre dois keyframes
+        let isTween = false;
+        if (!keyframesMap.has(idx) && sortedFrames.length >= 2) {
+            const firstKey = sortedFrames[0];
+            const lastKey = sortedFrames[sortedFrames.length - 1];
+            if (idx > firstKey && idx < lastKey) {
+                isTween = true;
+            }
+        }
+        cell.classList.toggle('is-interpolated', isTween);
     });
 }
+
+// --- CENTRALIZAR A CENA ---
+function centerScene() {
+    camera.position.set(0, 100, 250);
+    orbit.target.set(0, 90, 0);
+    orbit.update();
+}
+
+document.getElementById('btn-center-scene').addEventListener('click', centerScene);
 
 // --- SCRUBBING / ARRASTAR COM O MOUSE NA TIMELINE ---
 const scrollArea = document.getElementById('timeline-scroll');
@@ -690,7 +724,7 @@ let isScrubbing = false;
 function handleTimelineScrub(e) {
     const rect = scrollArea.getBoundingClientRect();
     const offsetX = e.clientX - rect.left + scrollArea.scrollLeft;
-    const frameIndex = Math.floor(offsetX / 20); // Cada frame possui 20px de largura
+    const frameIndex = Math.floor(offsetX / 20);
     if (frameIndex >= 0 && frameIndex < totalFrames && frameIndex !== currentFrame) {
         selectFrame(frameIndex);
     }
@@ -758,8 +792,9 @@ function stopAnimation() {
 document.getElementById('btn-play').addEventListener('click', togglePlay);
 document.getElementById('btn-add-keyframe').addEventListener('click', () => saveKeyframe(currentFrame, true));
 document.getElementById('btn-clear-keyframe').addEventListener('click', () => clearKeyframe(currentFrame));
+document.getElementById('btn-undo').addEventListener('click', undo);
 
-// --- EXPORTAR E IMPORTAR ANIMAÇÃO (JSON) COM NOME DO FBX ---
+// --- EXPORTAR E IMPORTAR ANIMAÇÃO (JSON) ---
 document.getElementById('btn-save-anim').addEventListener('click', () => {
     if (keyframesMap.size === 0) {
         alert('Nenhum keyframe salvo para gravar.');
@@ -849,7 +884,7 @@ document.getElementById('anim-file-input').addEventListener('change', (e) => {
     reader.readAsText(file);
 });
 
-// --- ATALHOS DE TECLADO (F6, F7, ESPAÇO, CTRL+Z, CTRL+Y) ---
+// --- ATALHOS DE TECLADO ---
 window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -948,7 +983,6 @@ animate();
 
 window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / (window.innerHeight - 120);
-    camera.updateUpdateMatrix();
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight - 120);
 });
