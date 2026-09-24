@@ -78,7 +78,7 @@
         .coord-field label { font-size: 9px; opacity: 0.8; }
         .coord-field input { width: 100%; text-align: center; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 3px; font-size: 10px; }
 
-        /* TIMELINE ESTILO FLASH (FIXADA NA PARTE INFERIOR) */
+        /* TIMELINE ESTILO FLASH */
         #flash-timeline-container {
             position: absolute;
             bottom: 0;
@@ -99,7 +99,7 @@
             display: flex;
             align-items: center;
             padding: 0 10px;
-            gap: 10px;
+            gap: 8px;
             border-bottom: 1px solid var(--border-color);
         }
 
@@ -114,12 +114,32 @@
 
         .timeline-controls button:hover { opacity: 0.8; }
 
+        .timeline-field {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            border-left: 1px solid var(--border-color);
+            padding-left: 8px;
+            margin-left: 2px;
+        }
+
+        .timeline-field input {
+            width: 38px;
+            text-align: center;
+            background: var(--input-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+        }
+
         .timeline-scroll-area {
             flex: 1;
             overflow-x: auto;
             overflow-y: hidden;
             position: relative;
             background: var(--timeline-track-bg);
+            cursor: pointer;
         }
 
         /* RÉGUA DE FRAMES */
@@ -142,9 +162,10 @@
             align-items: center;
             justify-content: center;
             box-sizing: border-box;
+            pointer-events: none;
         }
 
-        /* TRILHA DE FRAMES (ESTILO FLASH) */
+        /* TRILHA DE FRAMES */
         .timeline-track {
             height: 35px;
             display: flex;
@@ -159,15 +180,14 @@
             border-right: 1px solid var(--border-color);
             box-sizing: border-box;
             position: relative;
-            cursor: pointer;
             background: var(--frame-cell-bg);
+            pointer-events: none;
         }
 
         .frame-cell.has-keyframe {
             background: var(--keyframe-bg);
         }
 
-        /* CÍRCULO DO KEYFRAME (ESTILO FLASH) */
         .frame-cell.has-keyframe::after {
             content: '';
             position: absolute;
@@ -180,7 +200,6 @@
             transform: translate(-50%, -50%);
         }
 
-        /* CABEÇOTE DE LEITURA (PLAYHEAD RED) */
         .frame-cell.active-frame {
             border-left: 2px solid #ff3333;
             border-right: 2px solid #ff3333;
@@ -260,14 +279,31 @@
     </div>
 </div>
 
-<!-- TIMELINE FLASH (INFERIOR) -->
+<!-- TIMELINE FLASH -->
 <div id="flash-timeline-container">
     <div class="timeline-controls">
         <button id="btn-play">► Play</button>
-        <button id="btn-add-keyframe" style="background: #2e7d32;">F6 - Inserir Keyframe</button>
-        <button id="btn-clear-keyframe" style="background: #c62828;">F7 - Inserir Frame Vazio</button>
+        <button id="btn-add-keyframe" style="background: #2e7d32;">F6 - Keyframe</button>
+        <button id="btn-clear-keyframe" style="background: #c62828;">F7 - Limpar</button>
+        
+        <div class="timeline-field">
+            <label for="fps-input">FPS:</label>
+            <input type="number" id="fps-input" value="12" min="1" max="60">
+        </div>
+
+        <div class="timeline-field">
+            <label for="total-frames-input">Fim:</label>
+            <input type="number" id="total-frames-input" value="60" min="2" max="500">
+        </div>
+
+        <div style="display: flex; gap: 4px; border-left: 1px solid var(--border-color); padding-left: 8px;">
+            <button id="btn-save-anim" style="background: #0277bd;">💾 Gravar</button>
+            <button id="btn-load-anim" style="background: #ef6c00;">📂 Carregar</button>
+            <input type="file" id="anim-file-input" accept=".json" style="display: none;">
+        </div>
+
         <span style="font-size: 11px; margin-left: auto;">
-            Frame Atual: <strong id="current-frame-text" style="color: #4CAF50;">1</strong> / <span id="total-frames-text">60</span>
+            Frame: <strong id="current-frame-text" style="color: #4CAF50;">1</strong> / <span id="total-frames-text">60</span>
         </span>
     </div>
 
@@ -321,7 +357,6 @@ transformControls.addEventListener('dragging-changed', (event) => {
     orbit.enabled = !event.value;
 });
 
-// Grava alterações no keyframe enquanto o gizmo for arrastado
 transformControls.addEventListener('change', () => {
     updateUIInputs();
     if (transformControls.dragging) {
@@ -330,7 +365,7 @@ transformControls.addEventListener('change', () => {
 });
 scene.add(transformControls);
 
-// --- ESTADO ---
+// --- ESTADO DA APLICAÇÃO ---
 let characterGroup = null;
 let skeletonHelper = null;
 let bonePickers = [];
@@ -338,11 +373,13 @@ let selectedBone = null;
 let boneMap = new Map();
 let allBones = [];
 
-const TOTAL_FRAMES = 60;
+let fbxFileName = "";
+let totalFrames = 60;
 let currentFrame = 0;
-let keyframesMap = new Map(); // FrameIndex -> Pose Snapshot
+let keyframesMap = new Map();
 let isPlaying = false;
 let playInterval = null;
+let targetFPS = 12;
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -351,6 +388,8 @@ const mouse = new THREE.Vector2();
 document.getElementById('file-input').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
+
+    fbxFileName = file.name;
 
     const reader = new FileReader();
     reader.readAsArrayBuffer(file);
@@ -458,7 +497,7 @@ function updateUIInputs() {
     });
 });
 
-// --- TIMELINE E INTERPOLAÇÃO ---
+// --- TIMELINE E KEYFRAMES ---
 function buildFlashTimelineUI() {
     const rulerContainer = document.getElementById('timeline-ruler');
     const trackContainer = document.getElementById('timeline-track');
@@ -466,7 +505,7 @@ function buildFlashTimelineUI() {
     rulerContainer.innerHTML = '';
     trackContainer.innerHTML = '';
 
-    for (let i = 0; i < TOTAL_FRAMES; i++) {
+    for (let i = 0; i < totalFrames; i++) {
         const mark = document.createElement('div');
         mark.className = 'ruler-mark';
         if ((i + 1) % 5 === 0 || i === 0) mark.innerText = i + 1;
@@ -475,9 +514,9 @@ function buildFlashTimelineUI() {
         const cell = document.createElement('div');
         cell.className = 'frame-cell';
         cell.dataset.frame = i;
-        cell.addEventListener('click', () => selectFrame(i));
         trackContainer.appendChild(cell);
     }
+    document.getElementById('total-frames-text').innerText = totalFrames;
     updateTimelineGrid();
 }
 
@@ -499,13 +538,12 @@ function clearKeyframe(frameIdx) {
 }
 
 function selectFrame(frameIdx) {
-    currentFrame = frameIdx;
+    currentFrame = Math.max(0, Math.min(totalFrames - 1, frameIdx));
     document.getElementById('current-frame-text').innerText = currentFrame + 1;
     applyPoseForFrame(currentFrame);
     updateTimelineGrid();
 }
 
-// INTERPOLAÇÃO ENTRE KEYFRAMES
 function applyPoseForFrame(frameIdx) {
     if (allBones.length === 0 || keyframesMap.size === 0) return;
 
@@ -520,7 +558,6 @@ function applyPoseForFrame(frameIdx) {
         return;
     }
 
-    // Busca o keyframe anterior e o posterior para intercalar
     const sortedFrames = Array.from(keyframesMap.keys()).sort((a, b) => a - b);
     let prevFrame = -1;
     let nextFrame = -1;
@@ -559,14 +596,56 @@ function updateTimelineGrid() {
     });
 }
 
-// BOTOES DE CONTROLE
-document.getElementById('btn-add-keyframe').addEventListener('click', () => saveKeyframe(currentFrame, true));
-document.getElementById('btn-clear-keyframe').addEventListener('click', () => clearKeyframe(currentFrame));
+// --- SCRUBBING / ARRASTAR COM O MOUSE NA TIMELINE ---
+const scrollArea = document.getElementById('timeline-scroll');
+let isScrubbing = false;
 
-window.addEventListener('keydown', (e) => {
-    if (e.key === 'F6') { e.preventDefault(); saveKeyframe(currentFrame, true); }
-    else if (e.key === 'F7') { e.preventDefault(); clearKeyframe(currentFrame); }
-    else if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+function handleTimelineScrub(e) {
+    const rect = scrollArea.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left + scrollArea.scrollLeft;
+    const frameIndex = Math.floor(offsetX / 20); // Cada frame possui 20px de largura
+    if (frameIndex >= 0 && frameIndex < totalFrames && frameIndex !== currentFrame) {
+        selectFrame(frameIndex);
+    }
+}
+
+scrollArea.addEventListener('mousedown', (e) => {
+    isScrubbing = true;
+    handleTimelineScrub(e);
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (isScrubbing) {
+        handleTimelineScrub(e);
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    isScrubbing = false;
+});
+
+// --- DEFINIÇÃO DO FRAME FINAL E FPS ---
+document.getElementById('total-frames-input').addEventListener('change', (e) => {
+    let val = parseInt(e.target.value) || 60;
+    val = Math.max(2, Math.min(500, val));
+    e.target.value = val;
+    totalFrames = val;
+    buildFlashTimelineUI();
+    if (currentFrame >= totalFrames) {
+        selectFrame(totalFrames - 1);
+    }
+});
+
+document.getElementById('fps-input').addEventListener('change', (e) => {
+    let val = parseInt(e.target.value) || 12;
+    val = Math.max(1, Math.min(60, val));
+    e.target.value = val;
+    targetFPS = val;
+    
+    if (isPlaying) {
+        stopAnimation();
+        startAnimation();
+    }
 });
 
 function togglePlay() {
@@ -578,9 +657,9 @@ function startAnimation() {
     isPlaying = true;
     document.getElementById('btn-play').innerText = '❚❚ Pause';
     playInterval = setInterval(() => {
-        currentFrame = (currentFrame + 1) % TOTAL_FRAMES;
+        currentFrame = (currentFrame + 1) % totalFrames;
         selectFrame(currentFrame);
-    }, 1000 / 12);
+    }, 1000 / targetFPS);
 }
 
 function stopAnimation() {
@@ -590,8 +669,106 @@ function stopAnimation() {
 }
 
 document.getElementById('btn-play').addEventListener('click', togglePlay);
+document.getElementById('btn-add-keyframe').addEventListener('click', () => saveKeyframe(currentFrame, true));
+document.getElementById('btn-clear-keyframe').addEventListener('click', () => clearKeyframe(currentFrame));
 
-// TEMA LIGHT / DARK
+// --- EXPORTAR E IMPORTAR ANIMAÇÃO (JSON) COM NOME DO FBX ---
+document.getElementById('btn-save-anim').addEventListener('click', () => {
+    if (keyframesMap.size === 0) {
+        alert('Nenhum keyframe salvo para gravar.');
+        return;
+    }
+
+    const exportData = {
+        fbxFileName: fbxFileName || 'modelo_desconhecido.fbx',
+        fps: targetFPS,
+        totalFrames: totalFrames,
+        bonesOrder: allBones.map(b => b.name),
+        keyframes: []
+    };
+
+    keyframesMap.forEach((pose, frameIdx) => {
+        exportData.keyframes.push({
+            frame: frameIdx,
+            pose: pose.map(p => ({
+                pos: [p.position.x, p.position.y, p.position.z],
+                rot: [p.quaternion.x, p.quaternion.y, p.quaternion.z, p.quaternion.w],
+                scl: [p.scale.x, p.scale.y, p.scale.z]
+            }))
+        });
+    });
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (fbxFileName ? fbxFileName.replace('.fbx', '') : 'animacao') + '_export.json';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+document.getElementById('btn-load-anim').addEventListener('click', () => {
+    if (allBones.length === 0) {
+        alert('Carregue um arquivo FBX antes de importar a animação.');
+        return;
+    }
+    document.getElementById('anim-file-input').click();
+});
+
+document.getElementById('anim-file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const data = JSON.parse(event.target.result);
+            if (!data.keyframes) throw new Error('Formato inválido');
+
+            keyframesMap.clear();
+
+            if (data.fps) {
+                targetFPS = data.fps;
+                document.getElementById('fps-input').value = targetFPS;
+            }
+
+            if (data.totalFrames) {
+                totalFrames = data.totalFrames;
+                document.getElementById('total-frames-input').value = totalFrames;
+            }
+
+            data.keyframes.forEach(kf => {
+                const poseSnapshot = kf.pose.map(p => ({
+                    position: new THREE.Vector3(...p.pos),
+                    quaternion: new THREE.Quaternion(...p.rot),
+                    scale: new THREE.Vector3(...p.scl)
+                }));
+                keyframesMap.set(kf.frame, poseSnapshot);
+            });
+
+            buildFlashTimelineUI();
+            selectFrame(0);
+
+            if (data.fbxFileName && data.fbxFileName !== fbxFileName) {
+                alert(`Atenção: Esta animação foi criada para o arquivo "${data.fbxFileName}". O modelo atual é "${fbxFileName}".`);
+            } else {
+                alert('Animação carregada com sucesso!');
+            }
+        } catch (err) {
+            alert('Erro ao carregar o arquivo de animação: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+});
+
+// --- ATALHOS DE TECLADO (F6, F7, ESPAÇO) ---
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'F6') { e.preventDefault(); saveKeyframe(currentFrame, true); }
+    else if (e.key === 'F7') { e.preventDefault(); clearKeyframe(currentFrame); }
+    else if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
+});
+
+// --- TEMA LIGHT / DARK ---
 document.getElementById('btn-theme-toggle').addEventListener('click', () => {
     document.body.classList.toggle('light-theme');
     const isLight = document.body.classList.contains('light-theme');
@@ -638,7 +815,7 @@ document.getElementById('opacity-slider').addEventListener('input', (e) => {
     }
 });
 
-// CLIQUE PARA SELEÇÃO
+// SELEÇÃO DE OSSOS NA CENA
 window.addEventListener('pointerdown', (event) => {
     if (event.clientY > window.innerHeight - 120 || event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON' || event.target.tagName === 'LABEL') return;
 
