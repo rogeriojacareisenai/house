@@ -3,149 +3,277 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edição de Posição de Ossos - Mixamo FBX</title>
+    <title>Animação FBX estilo Flash Timeline</title>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: #111; }
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-bg: rgba(0, 0, 0, 0.85);
+            --text-color: #ffffff;
+            --border-color: #444;
+            --timeline-bg: #2b2b2b;
+            --timeline-controls-bg: #333;
+            --timeline-ruler-bg: #2a2a2a;
+            --timeline-track-bg: #222;
+            --frame-cell-bg: #2c2c2c;
+            --keyframe-bg: #c0c0c0;
+            --keyframe-dot: #000000;
+            --input-bg: #222;
+        }
+
+        body.light-theme {
+            --bg-color: #e0e0e0;
+            --panel-bg: rgba(255, 255, 255, 0.9);
+            --text-color: #111111;
+            --border-color: #ccc;
+            --timeline-bg: #f0f0f0;
+            --timeline-controls-bg: #e0e0e0;
+            --timeline-ruler-bg: #e5e5e5;
+            --timeline-track-bg: #ffffff;
+            --frame-cell-bg: #f5f5f5;
+            --keyframe-bg: #a0a0a0;
+            --keyframe-dot: #111111;
+            --input-bg: #ffffff;
+        }
+
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); user-select: none; transition: background-color 0.3s; }
+        
+        /* PAINEL LATERAL DE CONTROLES */
         #ui {
             position: absolute;
             top: 10px;
             left: 10px;
-            background: rgba(0, 0, 0, 0.85);
-            color: white;
-            padding: 15px;
+            background: var(--panel-bg);
+            color: var(--text-color);
+            padding: 12px;
             border-radius: 8px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             z-index: 100;
-            width: 300px;
-            max-height: 90vh;
+            width: 280px;
+            max-height: 55vh;
             overflow-y: auto;
+            border: 1px solid var(--border-color);
         }
-        button, input { cursor: pointer; padding: 5px; }
-        .instructions { font-size: 11px; color: #ccc; line-height: 1.3; }
+        button, input { cursor: pointer; padding: 4px; }
         .active { background: #4CAF50; color: white; border: none; }
         .btn-group { display: flex; gap: 4px; }
         .btn-group button { flex: 1; font-size: 11px; }
-        .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
-        .section-title { font-size: 12px; font-weight: bold; color: #4CAF50; text-transform: uppercase; }
-        
-        /* Estilos do Painel do Osso Selecionado */
+        .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+        .section-title { font-size: 11px; font-weight: bold; color: #4CAF50; text-transform: uppercase; }
+        .slider-row { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+
+        /* PAINEL DO OSSO */
         #bone-panel {
-            background: rgba(255, 255, 255, 0.07);
-            border: 1px solid #444;
-            padding: 10px;
+            background: rgba(125, 125, 125, 0.1);
+            border: 1px solid var(--border-color);
+            padding: 8px;
             border-radius: 6px;
             display: flex;
             flex-direction: column;
-            gap: 8px;
-        }
-        .coord-group {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             gap: 6px;
         }
-        .coord-field {
+        .coord-group { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+        .coord-field { display: flex; flex-direction: column; align-items: center; flex: 1; }
+        .coord-field label { font-size: 9px; opacity: 0.8; }
+        .coord-field input { width: 100%; text-align: center; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 3px; font-size: 10px; }
+
+        /* TIMELINE ESTILO FLASH (FIXADA NA PARTE INFERIOR) */
+        #flash-timeline-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 120px;
+            background: var(--timeline-bg);
+            border-top: 2px solid var(--border-color);
             display: flex;
             flex-direction: column;
+            z-index: 100;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
+        }
+        
+        .timeline-controls {
+            height: 32px;
+            background: var(--timeline-controls-bg);
+            display: flex;
             align-items: center;
-            flex: 1;
+            padding: 0 10px;
+            gap: 10px;
+            border-bottom: 1px solid var(--border-color);
         }
-        .coord-field label {
-            font-size: 10px;
-            color: #aaa;
-            margin-bottom: 2px;
-        }
-        .coord-field input {
-            width: 100%;
-            text-align: center;
-            background: #222;
+
+        .timeline-controls button {
+            background: #444;
             color: #fff;
-            border: 1px solid #555;
-            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            font-size: 11px;
+            padding: 3px 8px;
+        }
+
+        .timeline-controls button:hover { opacity: 0.8; }
+
+        .timeline-scroll-area {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            position: relative;
+            background: var(--timeline-track-bg);
+        }
+
+        /* RÉGUA DE FRAMES */
+        .timeline-ruler {
+            height: 20px;
+            background: var(--timeline-ruler-bg);
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .ruler-mark {
+            width: 20px;
+            min-width: 20px;
+            height: 100%;
+            border-right: 1px solid var(--border-color);
+            font-size: 9px;
+            opacity: 0.7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             box-sizing: border-box;
         }
-        .coord-field input:focus {
-            border-color: #4CAF50;
-            outline: none;
+
+        /* TRILHA DE FRAMES (ESTILO FLASH) */
+        .timeline-track {
+            height: 35px;
+            display: flex;
+            background: var(--timeline-track-bg);
+            position: relative;
+        }
+
+        .frame-cell {
+            width: 20px;
+            min-width: 20px;
+            height: 100%;
+            border-right: 1px solid var(--border-color);
+            box-sizing: border-box;
+            position: relative;
+            cursor: pointer;
+            background: var(--frame-cell-bg);
+        }
+
+        .frame-cell.has-keyframe {
+            background: var(--keyframe-bg);
+        }
+
+        /* CÍRCULO DO KEYFRAME (ESTILO FLASH) */
+        .frame-cell.has-keyframe::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--keyframe-dot);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        /* CABEÇOTE DE LEITURA (PLAYHEAD RED) */
+        .frame-cell.active-frame {
+            border-left: 2px solid #ff3333;
+            border-right: 2px solid #ff3333;
+        }
+
+        .frame-cell.active-frame::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -1px;
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 51, 51, 0.4);
+            border-top: 2px solid #ff3333;
+            z-index: 10;
         }
     </style>
 </head>
 <body>
 
+<!-- PAINEL LATERAL -->
 <div id="ui">
-    <label><strong>1. Carregar FBX do Mixamo:</strong></label>
-    <input type="file" id="file-input" accept=".fbx">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <label style="font-size: 11px;"><strong>1. Carregar FBX:</strong></label>
+        <button id="btn-theme-toggle" style="font-size: 10px; padding: 2px 6px;">🌓 Tema Light/Dark</button>
+    </div>
+    <input type="file" id="file-input" accept=".fbx" style="font-size: 11px;">
     
-    <hr style="width: 100%; border: 0.5px solid #555; margin: 0;">
+    <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
 
     <div class="checkbox-row">
         <input type="checkbox" id="chk-skeleton" checked>
-        <label for="chk-skeleton">Exibir Linhas do Esqueleto</label>
+        <label for="chk-skeleton">Exibir Esqueleto</label>
     </div>
 
     <div class="checkbox-row">
         <input type="checkbox" id="chk-pickers" checked>
-        <label for="chk-pickers">Exibir Pontos das Juntas</label>
+        <label for="chk-pickers">Exibir Juntas Interativas</label>
     </div>
 
-    <div style="display: flex; flex-direction: column; gap: 4px; font-size: 12px;">
-        <label>Opacidade do Personagem:</label>
+    <div class="slider-row">
+        <label>Tamanho das Juntas:</label>
+        <input type="range" id="picker-radius-slider" min="0.5" max="6.0" step="0.2" value="1.8">
+    </div>
+
+    <div class="slider-row">
+        <label>Opacidade da Malha:</label>
         <input type="range" id="opacity-slider" min="0.0" max="1.0" step="0.05" value="0.5">
     </div>
 
-    <hr style="width: 100%; border: 0.5px solid #555; margin: 0;">
+    <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
 
-    <label><strong>2. Modo de Transformação Visual:</strong></label>
+    <label style="font-size: 11px;"><strong>Modo de Gizmo:</strong></label>
     <div class="btn-group">
         <button id="btn-mode-translate" class="active">Mover</button>
         <button id="btn-mode-rotate">Rotacionar</button>
         <button id="btn-mode-scale">Escalonar</button>
     </div>
 
-    <!-- PAINEL DE CONTROLE DE POSIÇÃO DO OSSO SELECIONADO -->
+    <!-- CONTROLE INDIVIDUAL DO OSSO -->
     <div id="bone-panel" style="display: none;">
         <span class="section-title" id="selected-bone-name">Osso Selecionado</span>
         
-        <div style="font-size: 11px; color: #ddd; font-weight: bold; margin-top: 2px;">Editar Posição Local:</div>
+        <div style="font-size: 10px; font-weight: bold;">Posição:</div>
         <div class="coord-group">
-            <div class="coord-field">
-                <label for="pos-x">X</label>
-                <input type="number" id="pos-x" step="0.1">
-            </div>
-            <div class="coord-field">
-                <label for="pos-y">Y</label>
-                <input type="number" id="pos-y" step="0.1">
-            </div>
-            <div class="coord-field">
-                <label for="pos-z">Z</label>
-                <input type="number" id="pos-z" step="0.1">
-            </div>
+            <div class="coord-field"><label>X</label><input type="number" id="pos-x" step="0.1"></div>
+            <div class="coord-field"><label>Y</label><input type="number" id="pos-y" step="0.1"></div>
+            <div class="coord-field"><label>Z</label><input type="number" id="pos-z" step="0.1"></div>
         </div>
 
-        <div style="font-size: 11px; color: #ddd; font-weight: bold; margin-top: 4px;">Editar Rotação (°):</div>
+        <div style="font-size: 10px; font-weight: bold;">Rotação (°):</div>
         <div class="coord-group">
-            <div class="coord-field">
-                <label for="rot-x">X</label>
-                <input type="number" id="rot-x" step="1">
-            </div>
-            <div class="coord-field">
-                <label for="rot-y">Y</label>
-                <input type="number" id="rot-y" step="1">
-            </div>
-            <div class="coord-field">
-                <label for="rot-z">Z</label>
-                <input type="number" id="rot-z" step="1">
-            </div>
+            <div class="coord-field"><label>X</label><input type="number" id="rot-x" step="1"></div>
+            <div class="coord-field"><label>Y</label><input type="number" id="rot-y" step="1"></div>
+            <div class="coord-field"><label>Z</label><input type="number" id="rot-z" step="1"></div>
         </div>
+    </div>
+</div>
 
-        <button id="btn-reset-selected" style="margin-top: 6px; font-size: 11px;">Resetar Posição Deste Osso</button>
+<!-- TIMELINE FLASH (INFERIOR) -->
+<div id="flash-timeline-container">
+    <div class="timeline-controls">
+        <button id="btn-play">► Play</button>
+        <button id="btn-add-keyframe" style="background: #2e7d32;">F6 - Inserir Keyframe</button>
+        <button id="btn-clear-keyframe" style="background: #c62828;">F7 - Inserir Frame Vazio</button>
+        <span style="font-size: 11px; margin-left: auto;">
+            Frame Atual: <strong id="current-frame-text" style="color: #4CAF50;">1</strong> / <span id="total-frames-text">60</span>
+        </span>
     </div>
 
-    <div class="instructions">
-        • Clique na junta desejada na tela para selecioná-la.<br>
-        • Digite os valores de <strong>X, Y e Z</strong> nos campos para deslocar o osso com precisão ou arraste o manipulador 3D.
+    <div class="timeline-scroll-area" id="timeline-scroll">
+        <div class="timeline-ruler" id="timeline-ruler"></div>
+        <div class="timeline-track" id="timeline-track"></div>
     </div>
 </div>
 
@@ -164,38 +292,41 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
-// --- CENA ---
+// --- CONFIGURAÇÃO DA CENA ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x222222);
+scene.background = new THREE.Color(0x1a1a1a);
 
-const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
-gridHelper.position.y = 0;
+let gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
 scene.add(gridHelper);
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 120), 0.1, 1000);
 camera.position.set(0, 100, 250);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(window.innerWidth, window.innerHeight - 120);
 document.body.appendChild(renderer.domElement);
 
 const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.target.set(0, 90, 0);
 
 scene.add(new THREE.AmbientLight(0xffffff, 1.2));
-const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
-dirLight1.position.set(100, 200, 150);
-scene.add(dirLight1);
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+dirLight.position.set(100, 200, 150);
+scene.add(dirLight);
 
-// --- CONTROLES DE TRANSFORMAÇÃO (GIZMO) ---
+// --- TRANSFORM CONTROLS ---
 const transformControls = new TransformControls(camera, renderer.domElement);
-transformControls.setMode('translate'); // Inicia em modo Mover
+transformControls.setMode('translate');
 transformControls.addEventListener('dragging-changed', (event) => {
     orbit.enabled = !event.value;
 });
-// Atualiza as caixas numéricas do painel quando o usuário move o gizmo na tela
+
+// Grava alterações no keyframe enquanto o gizmo for arrastado
 transformControls.addEventListener('change', () => {
     updateUIInputs();
+    if (transformControls.dragging) {
+        saveKeyframe(currentFrame, false);
+    }
 });
 scene.add(transformControls);
 
@@ -205,7 +336,13 @@ let skeletonHelper = null;
 let bonePickers = [];
 let selectedBone = null;
 let boneMap = new Map();
-let initialPositionsMap = new Map();
+let allBones = [];
+
+const TOTAL_FRAMES = 60;
+let currentFrame = 0;
+let keyframesMap = new Map(); // FrameIndex -> Pose Snapshot
+let isPlaying = false;
+let playInterval = null;
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -225,13 +362,13 @@ document.getElementById('file-input').addEventListener('change', (event) => {
 
         characterGroup = fbx;
         scene.add(characterGroup);
-
         characterGroup.scale.setScalar(1);
 
-        // Helper de Esqueleto
         skeletonHelper = new THREE.SkeletonHelper(characterGroup);
         skeletonHelper.material.linewidth = 2;
         scene.add(skeletonHelper);
+
+        const radius = parseFloat(document.getElementById('picker-radius-slider').value);
 
         characterGroup.traverse((child) => {
             if (child.isMesh) {
@@ -242,21 +379,10 @@ document.getElementById('file-input').addEventListener('change', (event) => {
 
             if (child.isBone) {
                 child.matrixAutoUpdate = true;
+                allBones.push(child);
 
-                // Guarda a posição inicial padrão do osso
-                initialPositionsMap.set(child, {
-                    position: child.position.clone(),
-                    rotation: child.rotation.clone()
-                });
-
-                // Esfera seletora para cada osso
-                const pickerGeo = new THREE.SphereGeometry(1.8, 16, 16);
-                const pickerMat = new THREE.MeshBasicMaterial({ 
-                    color: 0xffcc00, 
-                    depthTest: false,
-                    transparent: true,
-                    opacity: 0.8 
-                });
+                const pickerGeo = new THREE.SphereGeometry(radius, 16, 16);
+                const pickerMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, depthTest: false, transparent: true, opacity: 0.8 });
                 const picker = new THREE.Mesh(pickerGeo, pickerMat);
                 picker.renderOrder = 999;
                 
@@ -266,17 +392,22 @@ document.getElementById('file-input').addEventListener('change', (event) => {
             }
         });
 
+        saveKeyframe(0, true);
+        buildFlashTimelineUI();
+        selectFrame(0);
         updateVisibility();
     };
 });
 
 function clearCurrentModel() {
+    stopAnimation();
     if (characterGroup) scene.remove(characterGroup);
     if (skeletonHelper) scene.remove(skeletonHelper);
     bonePickers.forEach(p => scene.remove(p));
     bonePickers = [];
     boneMap.clear();
-    initialPositionsMap.clear();
+    allBones = [];
+    keyframesMap.clear();
     transformControls.detach();
     selectedBone = null;
     document.getElementById('bone-panel').style.display = 'none';
@@ -292,65 +423,192 @@ function updateHelpers() {
     });
 }
 
-// SELEÇÃO DO OSSO
 function selectBone(bone) {
     selectedBone = bone;
     transformControls.attach(bone);
-    
-    // Exibe o painel de edição
     document.getElementById('bone-panel').style.display = 'flex';
     document.getElementById('selected-bone-name').innerText = bone.name || 'Osso Selecionado';
-    
     updateUIInputs();
 }
 
-// Sincroniza a posição e rotação do osso selecionado com os campos numéricos do painel
 function updateUIInputs() {
     if (!selectedBone) return;
-
-    // Posição X, Y, Z
     document.getElementById('pos-x').value = selectedBone.position.x.toFixed(2);
     document.getElementById('pos-y').value = selectedBone.position.y.toFixed(2);
     document.getElementById('pos-z').value = selectedBone.position.z.toFixed(2);
-
-    // Rotação X, Y, Z em graus
     document.getElementById('rot-x').value = THREE.MathUtils.radToDeg(selectedBone.rotation.x).toFixed(0);
     document.getElementById('rot-y').value = THREE.MathUtils.radToDeg(selectedBone.rotation.y).toFixed(0);
     document.getElementById('rot-z').value = THREE.MathUtils.radToDeg(selectedBone.rotation.z).toFixed(0);
 }
 
-// EVENTOS DE ALTERAÇÃO DIRETA NOS INPUTS DE POSIÇÃO (X, Y, Z)
+// ATUALIZAÇÃO VIA DIGITAÇÃO
 ['pos-x', 'pos-y', 'pos-z'].forEach((id, index) => {
     document.getElementById(id).addEventListener('input', (e) => {
         if (!selectedBone) return;
-        const value = parseFloat(e.target.value) || 0;
-        const axis = ['x', 'y', 'z'][index];
-        selectedBone.position[axis] = value;
+        selectedBone.position[['x', 'y', 'z'][index]] = parseFloat(e.target.value) || 0;
+        saveKeyframe(currentFrame, false);
     });
 });
 
-// EVENTOS DE ALTERAÇÃO DIRETA NOS INPUTS DE ROTAÇÃO (X, Y, Z)
 ['rot-x', 'rot-y', 'rot-z'].forEach((id, index) => {
     document.getElementById(id).addEventListener('input', (e) => {
         if (!selectedBone) return;
-        const valueDegrees = parseFloat(e.target.value) || 0;
-        const axis = ['x', 'y', 'z'][index];
-        selectedBone.rotation[axis] = THREE.MathUtils.degToRad(valueDegrees);
+        selectedBone.rotation[['x', 'y', 'z'][index]] = THREE.MathUtils.degToRad(parseFloat(e.target.value) || 0);
+        saveKeyframe(currentFrame, false);
     });
 });
 
-// RESETAR APENAS O OSSO SELECIONADO
-document.getElementById('btn-reset-selected').addEventListener('click', () => {
-    if (!selectedBone) return;
-    const initial = initialPositionsMap.get(selectedBone);
-    if (initial) {
-        selectedBone.position.copy(initial.position);
-        selectedBone.rotation.copy(initial.rotation);
-        updateUIInputs();
+// --- TIMELINE E INTERPOLAÇÃO ---
+function buildFlashTimelineUI() {
+    const rulerContainer = document.getElementById('timeline-ruler');
+    const trackContainer = document.getElementById('timeline-track');
+    
+    rulerContainer.innerHTML = '';
+    trackContainer.innerHTML = '';
+
+    for (let i = 0; i < TOTAL_FRAMES; i++) {
+        const mark = document.createElement('div');
+        mark.className = 'ruler-mark';
+        if ((i + 1) % 5 === 0 || i === 0) mark.innerText = i + 1;
+        rulerContainer.appendChild(mark);
+
+        const cell = document.createElement('div');
+        cell.className = 'frame-cell';
+        cell.dataset.frame = i;
+        cell.addEventListener('click', () => selectFrame(i));
+        trackContainer.appendChild(cell);
     }
+    updateTimelineGrid();
+}
+
+function saveKeyframe(frameIdx, updateUI = true) {
+    if (allBones.length === 0) return;
+    const poseSnapshot = allBones.map(bone => ({
+        position: bone.position.clone(),
+        quaternion: bone.quaternion.clone(),
+        scale: bone.scale.clone()
+    }));
+    keyframesMap.set(frameIdx, poseSnapshot);
+    if (updateUI) updateTimelineGrid();
+}
+
+function clearKeyframe(frameIdx) {
+    keyframesMap.delete(frameIdx);
+    updateTimelineGrid();
+    applyPoseForFrame(currentFrame);
+}
+
+function selectFrame(frameIdx) {
+    currentFrame = frameIdx;
+    document.getElementById('current-frame-text').innerText = currentFrame + 1;
+    applyPoseForFrame(currentFrame);
+    updateTimelineGrid();
+}
+
+// INTERPOLAÇÃO ENTRE KEYFRAMES
+function applyPoseForFrame(frameIdx) {
+    if (allBones.length === 0 || keyframesMap.size === 0) return;
+
+    if (keyframesMap.has(frameIdx)) {
+        const pose = keyframesMap.get(frameIdx);
+        allBones.forEach((bone, idx) => {
+            bone.position.copy(pose[idx].position);
+            bone.quaternion.copy(pose[idx].quaternion);
+            bone.scale.copy(pose[idx].scale);
+        });
+        updateUIInputs();
+        return;
+    }
+
+    // Busca o keyframe anterior e o posterior para intercalar
+    const sortedFrames = Array.from(keyframesMap.keys()).sort((a, b) => a - b);
+    let prevFrame = -1;
+    let nextFrame = -1;
+
+    for (let f of sortedFrames) {
+        if (f < frameIdx) prevFrame = f;
+        if (f > frameIdx && nextFrame === -1) nextFrame = f;
+    }
+
+    if (prevFrame !== -1 && nextFrame !== -1) {
+        const factor = (frameIdx - prevFrame) / (nextFrame - prevFrame);
+        const prevPose = keyframesMap.get(prevFrame);
+        const nextPose = keyframesMap.get(nextFrame);
+
+        allBones.forEach((bone, idx) => {
+            bone.position.lerpVectors(prevPose[idx].position, nextPose[idx].position, factor);
+            bone.quaternion.slerpQuaternions(prevPose[idx].quaternion, nextPose[idx].quaternion, factor);
+            bone.scale.lerpVectors(prevPose[idx].scale, nextPose[idx].scale, factor);
+        });
+    } else if (prevFrame !== -1) {
+        const prevPose = keyframesMap.get(prevFrame);
+        allBones.forEach((bone, idx) => {
+            bone.position.copy(prevPose[idx].position);
+            bone.quaternion.copy(prevPose[idx].quaternion);
+            bone.scale.copy(prevPose[idx].scale);
+        });
+    }
+    updateUIInputs();
+}
+
+function updateTimelineGrid() {
+    const cells = document.querySelectorAll('.frame-cell');
+    cells.forEach((cell, idx) => {
+        cell.classList.toggle('active-frame', idx === currentFrame);
+        cell.classList.toggle('has-keyframe', keyframesMap.has(idx));
+    });
+}
+
+// BOTOES DE CONTROLE
+document.getElementById('btn-add-keyframe').addEventListener('click', () => saveKeyframe(currentFrame, true));
+document.getElementById('btn-clear-keyframe').addEventListener('click', () => clearKeyframe(currentFrame));
+
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'F6') { e.preventDefault(); saveKeyframe(currentFrame, true); }
+    else if (e.key === 'F7') { e.preventDefault(); clearKeyframe(currentFrame); }
+    else if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
 });
 
-// ALTERAR MODO DO GIZMO
+function togglePlay() {
+    if (isPlaying) stopAnimation();
+    else startAnimation();
+}
+
+function startAnimation() {
+    isPlaying = true;
+    document.getElementById('btn-play').innerText = '❚❚ Pause';
+    playInterval = setInterval(() => {
+        currentFrame = (currentFrame + 1) % TOTAL_FRAMES;
+        selectFrame(currentFrame);
+    }, 1000 / 12);
+}
+
+function stopAnimation() {
+    isPlaying = false;
+    document.getElementById('btn-play').innerText = '► Play';
+    if (playInterval) clearInterval(playInterval);
+}
+
+document.getElementById('btn-play').addEventListener('click', togglePlay);
+
+// TEMA LIGHT / DARK
+document.getElementById('btn-theme-toggle').addEventListener('click', () => {
+    document.body.classList.toggle('light-theme');
+    const isLight = document.body.classList.contains('light-theme');
+    
+    scene.background.setHex(isLight ? 0xe0e0e0 : 0x1a1a1a);
+    scene.remove(gridHelper);
+    gridHelper = new THREE.GridHelper(20, 20, isLight ? 0x888888 : 0x444444, isLight ? 0xcccccc : 0x222222);
+    scene.add(gridHelper);
+});
+
+// CONTROLES VISUAIS
+document.getElementById('picker-radius-slider').addEventListener('input', (e) => {
+    const newRadius = parseFloat(e.target.value);
+    const newGeo = new THREE.SphereGeometry(newRadius, 16, 16);
+    bonePickers.forEach(p => { p.geometry.dispose(); p.geometry = newGeo; });
+});
+
 const setMode = (mode, btnId) => {
     transformControls.setMode(mode);
     ['btn-mode-translate', 'btn-mode-rotate', 'btn-mode-scale'].forEach(id => {
@@ -362,7 +620,6 @@ document.getElementById('btn-mode-translate').addEventListener('click', () => se
 document.getElementById('btn-mode-rotate').addEventListener('click', () => setMode('rotate', 'btn-mode-rotate'));
 document.getElementById('btn-mode-scale').addEventListener('click', () => setMode('scale', 'btn-mode-scale'));
 
-// CONTROLE DE VISIBILIDADE
 function updateVisibility() {
     const showSkeleton = document.getElementById('chk-skeleton').checked;
     const showPickers = document.getElementById('chk-pickers').checked;
@@ -377,18 +634,16 @@ document.getElementById('chk-pickers').addEventListener('change', updateVisibili
 document.getElementById('opacity-slider').addEventListener('input', (e) => {
     const opacity = parseFloat(e.target.value);
     if (characterGroup) {
-        characterGroup.traverse((child) => {
-            if (child.isMesh) child.material.opacity = opacity;
-        });
+        characterGroup.traverse((child) => { if (child.isMesh) child.material.opacity = opacity; });
     }
 });
 
-// CLIQUE PARA SELECIONAR OSSO NA CENA
+// CLIQUE PARA SELEÇÃO
 window.addEventListener('pointerdown', (event) => {
-    if (event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON' || event.target.tagName === 'LABEL') return;
+    if (event.clientY > window.innerHeight - 120 || event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON' || event.target.tagName === 'LABEL') return;
 
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-    mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    mouse.y = -(event.clientY / (window.innerHeight - 120)) * 2 + 1;
 
     raycaster.setFromCamera(mouse, camera);
     const visiblePickers = bonePickers.filter(p => p.visible);
@@ -397,9 +652,7 @@ window.addEventListener('pointerdown', (event) => {
     if (intersects.length > 0) {
         const pickedObject = intersects[0].object;
         const targetBone = boneMap.get(pickedObject);
-        if (targetBone) {
-            selectBone(targetBone);
-        }
+        if (targetBone) selectBone(targetBone);
     }
 });
 
@@ -412,9 +665,9 @@ function animate() {
 animate();
 
 window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.aspect = window.innerWidth / (window.innerHeight - 120);
     camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setSize(window.innerWidth, window.innerHeight - 120);
 });
 </script>
 </body>
