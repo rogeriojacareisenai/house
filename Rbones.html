@@ -283,11 +283,11 @@
             </div>
 
             <div id="embedded-anim-container" class="control-block" style="display: none;">
-                <label>Animações Embutidas:</label>
+                <label>Animações (Mixamo / Embutidas):</label>
                 <select id="embedded-anim-select"></select>
+                <button id="btn-bake-anim" style="background: #e65100; color: #fff; margin-top: 4px; font-size: 11px;">📌 Converter Mixamo em Keyframes</button>
             </div>
 
-            <!-- PAINEL DE MÚLTIPLAS TEXTURAS -->
             <div class="control-block">
                 <label>Textura Base (Color / Albedo):</label>
                 <input type="file" id="map-albedo" accept="image/png, image/jpeg">
@@ -452,12 +452,12 @@
         
         <div class="timeline-field">
             <label for="fps-input">FPS:</label>
-            <input type="number" id="fps-input" value="12" min="1" max="60">
+            <input type="number" id="fps-input" value="30" min="1" max="60">
         </div>
 
         <div class="timeline-field">
             <label for="total-frames-input">Fim:</label>
-            <input type="number" id="total-frames-input" value="60" min="2" max="500">
+            <input type="number" id="total-frames-input" value="60" min="2" max="1000">
         </div>
 
         <div style="display: flex; gap: 4px; border-left: 1px solid var(--border-color); padding-left: 8px;">
@@ -808,7 +808,7 @@ function restoreState(snapshotMap) {
     applyPoseForFrame(currentFrame);
 }
 
-// OESTRUTURA DE SELEÇÃO MÚLTIPLA E PIVÔ
+// ESTRUTURA DE SELEÇÃO MÚLTIPLA E PIVÔ
 let selectedBones = [];
 const pivotObject = new THREE.Object3D();
 scene.add(pivotObject);
@@ -825,7 +825,6 @@ transformControls.addEventListener('dragging-changed', (event) => {
     orbit.enabled = !event.value;
     if (event.value) {
         pushState();
-        // Salva estados iniciais do pivô e dos objetos selecionados
         prevPivotPosition.copy(pivotObject.position);
         prevPivotQuaternion.copy(pivotObject.quaternion);
         prevPivotScale.copy(pivotObject.scale);
@@ -854,7 +853,7 @@ transformControls.addEventListener('change', () => {
                 if (bone.parent) {
                     const localDelta = deltaPos.clone();
                     bone.parent.worldToLocal(localDelta.add(bone.parent.getWorldPosition(new THREE.Vector3())));
-                    localDelta.sub(bone.parent.position); // Ajuste relativo
+                    localDelta.sub(bone.parent.position);
                 }
                 bone.position.add(deltaPos);
             });
@@ -864,7 +863,6 @@ transformControls.addEventListener('change', () => {
             selectedBones.forEach(bone => {
                 const init = initialStates.get(bone);
                 if (init) {
-                    // Rotação em relação ao centro do pivô
                     const worldPos = init.worldPosition.clone().sub(pivotObject.position);
                     worldPos.applyQuaternion(deltaRot);
                     worldPos.add(pivotObject.position);
@@ -921,11 +919,11 @@ let originalMaterials = new Map();
 
 // GERENCIAMENTO DE MÚLTIPLAS TEXTURAS
 const loadedTextures = {
-    map: null,          // Color / Albedo
-    normalMap: null,    // Normal
-    roughnessMap: null, // Roughness
-    metalnessMap: null, // Metalness
-    aoMap: null         // Ambient Occlusion
+    map: null,          
+    normalMap: null,    
+    roughnessMap: null, 
+    metalnessMap: null, 
+    aoMap: null         
 };
 
 const textureLoader = new THREE.TextureLoader();
@@ -988,7 +986,7 @@ let currentFrame = 0;
 let keyframesMap = new Map();
 let isPlaying = false;
 let playInterval = null;
-let targetFPS = 12;
+let targetFPS = 30;
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -1070,14 +1068,14 @@ function processLoadedModel(model, modelAnimations = []) {
     animations = modelAnimations;
     const animSelect = document.getElementById('embedded-anim-select');
     const animContainer = document.getElementById('embedded-anim-container');
-    animSelect.innerHTML = '<option value="">Nenhuma (Usar Linha do Tempo)</option>';
+    animSelect.innerHTML = '<option value="">Nenhuma (Apenas Timeline Manual)</option>';
 
     if (animations.length > 0) {
         mixer = new THREE.AnimationMixer(characterGroup);
         animations.forEach((clip, index) => {
             const opt = document.createElement('option');
             opt.value = index;
-            opt.innerText = clip.name || `Animação ${index + 1}`;
+            opt.innerText = clip.name || `Animação Mixamo ${index + 1}`;
             animSelect.appendChild(opt);
         });
         animContainer.style.display = 'flex';
@@ -1272,16 +1270,68 @@ function loadOBJFromText(textData) {
     processLoadedModel(obj, []);
 }
 
+// SINCRONIZAÇÃO ENTRE ANIMAÇÃO DO MIXAMO E TIMELINE
 document.getElementById('embedded-anim-select').addEventListener('change', (e) => {
     const index = e.target.value;
-    if (activeAction) activeAction.stop();
-
-    if (index !== "" && mixer && animations[index]) {
-        activeAction = mixer.clipAction(animations[index]);
-        activeAction.play();
-    } else {
+    if (activeAction) {
+        activeAction.stop();
         activeAction = null;
     }
+
+    if (index !== "" && mixer && animations[index]) {
+        const clip = animations[index];
+        activeAction = mixer.clipAction(clip);
+        activeAction.play();
+
+        // Ajusta a quantidade total de frames baseado na duração do clipe do Mixamo
+        const calculatedFrames = Math.ceil(clip.duration * targetFPS);
+        if (calculatedFrames > 0) {
+            totalFrames = calculatedFrames;
+            document.getElementById('total-frames-input').value = totalFrames;
+            buildFlashTimelineUI();
+        }
+        
+        selectFrame(0);
+    } else {
+        selectFrame(currentFrame);
+    }
+});
+
+// CONVERTE A ANIMAÇÃO DO MIXAMO EM KEYFRAMES PARA A TIMELINE
+document.getElementById('btn-bake-anim').addEventListener('click', () => {
+    if (!activeAction || !mixer) {
+        return alert('Selecione primeiro uma animação do Mixamo no menu suspenso.');
+    }
+
+    pushState();
+    keyframesMap.clear();
+
+    const clip = activeAction.getClip();
+    const duration = clip.duration;
+    const step = 1 / targetFPS;
+
+    for (let frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
+        const time = Math.min(frameIdx * step, duration);
+        mixer.setTime(time);
+        characterGroup.updateMatrixWorld(true);
+
+        const poseSnapshot = allBones.map(bone => ({
+            position: bone.position.clone(),
+            quaternion: bone.quaternion.clone(),
+            scale: bone.scale.clone()
+        }));
+
+        keyframesMap.set(frameIdx, poseSnapshot);
+    }
+
+    // Desativa o mixer para utilizar diretamente a Timeline gravada
+    activeAction.stop();
+    activeAction = null;
+    document.getElementById('embedded-anim-select').value = "";
+
+    buildFlashTimelineUI();
+    selectFrame(0);
+    alert('Animação do Mixamo convertida com sucesso em Keyframes editáveis na Timeline!');
 });
 
 function clearCurrentModel() {
@@ -1337,7 +1387,6 @@ function selectBone(bone, multiSelect = false) {
         return;
     }
 
-    // Calcula o centro médio dos bones selecionados para reposicionar o pivô
     const avgPosition = new THREE.Vector3();
     selectedBones.forEach(b => {
         avgPosition.add(b.getWorldPosition(new THREE.Vector3()));
@@ -1464,21 +1513,29 @@ function clearKeyframe(frameIdx) {
 function selectFrame(frameIdx) {
     currentFrame = Math.max(0, Math.min(totalFrames - 1, frameIdx));
     document.getElementById('current-frame-text').innerText = currentFrame + 1;
-    if (!activeAction) {
-        applyPoseForFrame(currentFrame);
+
+    // Se houver animação do Mixamo selecionada, sincroniza o tempo exato do clipe com o frame
+    if (mixer && activeAction) {
+        const time = currentFrame / targetFPS;
+        mixer.setTime(time);
     }
+
+    applyPoseForFrame(currentFrame);
     updateTimelineGrid();
 }
 
 function applyPoseForFrame(frameIdx) {
-    if (allBones.length === 0 || keyframesMap.size === 0) return;
+    if (allBones.length === 0) return;
 
+    // Aplica keyframes customizados por cima da pose (se houver)
     if (keyframesMap.has(frameIdx)) {
         const pose = keyframesMap.get(frameIdx);
         allBones.forEach((bone, idx) => {
-            bone.position.copy(pose[idx].position);
-            bone.quaternion.copy(pose[idx].quaternion);
-            bone.scale.copy(pose[idx].scale);
+            if (pose[idx]) {
+                bone.position.copy(pose[idx].position);
+                bone.quaternion.copy(pose[idx].quaternion);
+                bone.scale.copy(pose[idx].scale);
+            }
         });
         updateUIInputs();
         return;
@@ -1499,16 +1556,20 @@ function applyPoseForFrame(frameIdx) {
         const nextPose = keyframesMap.get(nextFrame);
 
         allBones.forEach((bone, idx) => {
-            bone.position.lerpVectors(prevPose[idx].position, nextPose[idx].position, factor);
-            bone.quaternion.slerpQuaternions(prevPose[idx].quaternion, nextPose[idx].quaternion, factor);
-            bone.scale.lerpVectors(prevPose[idx].scale, nextPose[idx].scale, factor);
+            if (prevPose[idx] && nextPose[idx]) {
+                bone.position.lerpVectors(prevPose[idx].position, nextPose[idx].position, factor);
+                bone.quaternion.slerpQuaternions(prevPose[idx].quaternion, nextPose[idx].quaternion, factor);
+                bone.scale.lerpVectors(prevPose[idx].scale, nextPose[idx].scale, factor);
+            }
         });
     } else if (prevFrame !== -1) {
         const prevPose = keyframesMap.get(prevFrame);
         allBones.forEach((bone, idx) => {
-            bone.position.copy(prevPose[idx].position);
-            bone.quaternion.copy(prevPose[idx].quaternion);
-            bone.scale.copy(prevPose[idx].scale);
+            if (prevPose[idx]) {
+                bone.position.copy(prevPose[idx].position);
+                bone.quaternion.copy(prevPose[idx].quaternion);
+                bone.scale.copy(prevPose[idx].scale);
+            }
         });
     }
     updateUIInputs();
@@ -1542,17 +1603,37 @@ function centerScene() {
 document.getElementById('btn-center-scene').addEventListener('click', centerScene);
 
 function serializeProjectData() {
+    // Garante que a Timeline captura o estado mesclado das poses
     const keyframesArr = [];
-    keyframesMap.forEach((pose, frameIdx) => {
-        keyframesArr.push({
-            frame: frameIdx,
-            pose: pose.map(p => ({
-                pos: [p.position.x, p.position.y, p.position.z],
-                rot: [p.quaternion.x, p.quaternion.y, p.quaternion.z, p.quaternion.w],
-                scl: [p.scale.x, p.scale.y, p.scale.z]
-            }))
+    
+    // Se não houver keyframes manuais definidos, salva o estado atual ou gera do clipe
+    if (keyframesMap.size === 0 && activeAction) {
+        for (let frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
+            const time = frameIdx / targetFPS;
+            mixer.setTime(time);
+            characterGroup.updateMatrixWorld(true);
+
+            keyframesArr.push({
+                frame: frameIdx,
+                pose: allBones.map(p => ({
+                    pos: [p.position.x, p.position.y, p.position.z],
+                    rot: [p.quaternion.x, p.quaternion.y, p.quaternion.z, p.quaternion.w],
+                    scl: [p.scale.x, p.scale.y, p.scale.z]
+                }))
+            });
+        }
+    } else {
+        keyframesMap.forEach((pose, frameIdx) => {
+            keyframesArr.push({
+                frame: frameIdx,
+                pose: pose.map(p => ({
+                    pos: [p.position.x, p.position.y, p.position.z],
+                    rot: [p.quaternion.x, p.quaternion.y, p.quaternion.z, p.quaternion.w],
+                    scl: [p.scale.x, p.scale.y, p.scale.z]
+                }))
+            });
         });
-    });
+    }
 
     return {
         loadedFileName: loadedFileName || 'modelo.glb',
@@ -1572,32 +1653,55 @@ document.getElementById('btn-load-session').addEventListener('click', () => {
     const savedProject = localStorage.getItem(SESSION_PROJECT_KEY);
     if (!savedProject) return alert('Nenhum projeto encontrado salvo localmente.');
     try {
-        applySerializedProject(JSON.parse(savedProject));
+        importAnimationToTimeline(JSON.parse(savedProject));
         alert('Projeto carregado com sucesso!');
     } catch (err) {
         alert('Erro ao carregar projeto: ' + err.message);
     }
 });
 
-function applySerializedProject(data) {
-    if (data.loadedFileName) loadedFileName = data.loadedFileName;
-    if (data.fps) { targetFPS = data.fps; document.getElementById('fps-input').value = targetFPS; }
-    if (data.totalFrames) { totalFrames = data.totalFrames; document.getElementById('total-frames-input').value = totalFrames; }
-
-    if (allBones.length > 0) {
-        pushState();
-        keyframesMap.clear();
-        data.keyframes.forEach(kf => {
-            const poseSnapshot = kf.pose.map(p => ({
-                position: new THREE.Vector3(...p.pos),
-                quaternion: new THREE.Quaternion(...p.rot),
-                scale: new THREE.Vector3(...p.scl)
-            }));
-            keyframesMap.set(kf.frame, poseSnapshot);
-        });
-        buildFlashTimelineUI();
-        selectFrame(0);
+function importAnimationToTimeline(data) {
+    if (!data || !data.keyframes) {
+        throw new Error("Formato de arquivo JSON inválido ou sem dados de keyframes.");
     }
+
+    pushState();
+
+    if (data.fps) {
+        targetFPS = data.fps;
+        document.getElementById('fps-input').value = targetFPS;
+    }
+    if (data.totalFrames) {
+        totalFrames = data.totalFrames;
+        document.getElementById('total-frames-input').value = totalFrames;
+    }
+
+    keyframesMap.clear();
+
+    data.keyframes.forEach(kf => {
+        const frameIdx = kf.frame;
+        
+        const poseSnapshot = allBones.map((bone, idx) => {
+            if (kf.pose && kf.pose[idx]) {
+                const p = kf.pose[idx];
+                return {
+                    position: new THREE.Vector3(...p.pos),
+                    quaternion: new THREE.Quaternion(...p.rot),
+                    scale: new THREE.Vector3(...p.scl)
+                };
+            }
+            return {
+                position: bone.position.clone(),
+                quaternion: bone.quaternion.clone(),
+                scale: bone.scale.clone()
+            };
+        });
+
+        keyframesMap.set(frameIdx, poseSnapshot);
+    });
+
+    buildFlashTimelineUI();
+    selectFrame(0);
 }
 
 const scrollArea = document.getElementById('timeline-scroll');
@@ -1617,7 +1721,7 @@ window.addEventListener('mousemove', (e) => { if (isScrubbing) handleTimelineScr
 window.addEventListener('mouseup', () => { isScrubbing = false; });
 
 document.getElementById('total-frames-input').addEventListener('change', (e) => {
-    let val = Math.max(2, Math.min(500, parseInt(e.target.value) || 60));
+    let val = Math.max(2, Math.min(1000, parseInt(e.target.value) || 60));
     e.target.value = val;
     totalFrames = val;
     buildFlashTimelineUI();
@@ -1625,7 +1729,7 @@ document.getElementById('total-frames-input').addEventListener('change', (e) => 
 });
 
 document.getElementById('fps-input').addEventListener('change', (e) => {
-    let val = Math.max(1, Math.min(60, parseInt(e.target.value) || 12));
+    let val = Math.max(1, Math.min(60, parseInt(e.target.value) || 30));
     e.target.value = val;
     targetFPS = val;
     if (isPlaying) { stopAnimation(); startAnimation(); }
@@ -1657,7 +1761,6 @@ document.getElementById('btn-clear-keyframe').addEventListener('click', () => cl
 document.getElementById('btn-undo').addEventListener('click', undo);
 
 document.getElementById('btn-save-anim').addEventListener('click', () => {
-    if (keyframesMap.size === 0) return alert('Sem keyframes.');
     const exportData = serializeProjectData();
     exportData.bonesOrder = allBones.map(b => b.name || 'Root');
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -1670,19 +1773,23 @@ document.getElementById('btn-save-anim').addEventListener('click', () => {
 });
 
 document.getElementById('btn-load-anim').addEventListener('click', () => document.getElementById('anim-file-input').click());
+
 document.getElementById('anim-file-input').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = (event) => {
         try {
-            applySerializedProject(JSON.parse(event.target.result));
-            alert('Animação importada!');
+            const parsedData = JSON.parse(event.target.result);
+            importAnimationToTimeline(parsedData);
+            alert('Animação importada e aplicada à Timeline com sucesso!');
         } catch (err) {
-            alert('Erro: ' + err.message);
+            alert('Erro ao carregar o arquivo JSON: ' + err.message);
         }
     };
     reader.readAsText(file);
+    e.target.value = '';
 });
 
 window.addEventListener('keydown', (e) => {
@@ -1753,12 +1860,6 @@ loadEnvironmentSettings();
 
 function animate() {
     requestAnimationFrame(animate);
-    
-    const delta = clock.getDelta();
-    if (mixer && activeAction) {
-        mixer.update(delta);
-    }
-
     updateHelpers();
     renderer.render(scene, camera);
 }
