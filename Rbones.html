@@ -19,6 +19,7 @@
             --keyframe-dot: #000000;
             --input-bg: #222;
             --tween-line-color: #800020;
+            --summary-bg: rgba(255, 255, 255, 0.1);
         }
 
         body.light-theme {
@@ -35,6 +36,7 @@
             --keyframe-dot: #111111;
             --input-bg: #ffffff;
             --tween-line-color: #800020;
+            --summary-bg: rgba(0, 0, 0, 0.08);
         }
 
         body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); user-select: none; transition: background-color 0.3s; }
@@ -79,7 +81,7 @@
             font-weight: bold;
             padding: 6px 8px;
             cursor: pointer;
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--summary-bg); /* Fundo adicionado ao título da categoria */
             border-bottom: 1px solid transparent;
             list-style: none;
             display: flex;
@@ -90,7 +92,7 @@
         #ui summary::-webkit-details-marker { display: none; }
         #ui summary::after { content: '▼'; font-size: 8px; transition: transform 0.2s; opacity: 0.7; }
         #ui details[open] summary::after { transform: rotate(-180deg); }
-        #ui summary:hover { background: rgba(255, 255, 255, 0.1); }
+        #ui summary:hover { background: rgba(255, 255, 255, 0.2); }
         #ui details[open] summary { border-bottom-color: var(--border-color); }
 
         .menu-content { padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
@@ -317,7 +319,6 @@
                     <option value="night">🌙 Luz Noturna / Luar</option>
                     <option value="studio">🎬 Estúdio / Softbox</option>
                     <option value="cyberpunk">🛈 Neon / Cyberpunk</option>
-                    <!-- NOVOS 5 PRESETS DE LUZ -->
                     <option value="fire">🔥 Lareira / Fogo</option>
                     <option value="forest">🌲 Floresta / Místico Verde</option>
                     <option value="abyssal">🌊 Abissal / Oceano Profundo</option>
@@ -475,7 +476,8 @@ scene.background = new THREE.Color(0x1a1a1a);
 // CRIAR PISO INFINITO E GRADE DE SUPORTE
 const groundGroup = new THREE.Group();
 
-const gridHelper = new THREE.GridHelper(2000, 200, 0x555555, 0x333333);
+// Linha da grade alterada para cinza escuro (0x555555 e 0x777777)
+const gridHelper = new THREE.GridHelper(2000, 200, 0x777777, 0x555555);
 gridHelper.position.y = -0.01;
 groundGroup.add(gridHelper);
 
@@ -580,7 +582,6 @@ function applyLightingPreset(preset) {
             extraLightsGroup.add(bluePoint);
             break;
 
-        /* NOVOS 5 PRESETS DE ILUMINAÇÃO */
         case 'fire':
             ambientLight.color.setHex(0x330d00);
             ambientLight.intensity = 0.5;
@@ -953,7 +954,6 @@ function processLoadedModel(model, modelAnimations = []) {
     updateVisibility();
 }
 
-/* SISTEMA DE 15 TIPOS DE RENDERIZAÇÃO */
 function applyRenderMode(mode) {
     if (!characterGroup) return;
 
