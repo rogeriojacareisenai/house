@@ -222,7 +222,7 @@
             box-sizing: border-box;
             position: relative;
             background: var(--frame-cell-bg);
-            pointer-events: none;
+            pointer-events: auto;
         }
 
         .frame-cell.has-keyframe { background: var(--keyframe-bg); }
@@ -267,13 +267,36 @@
             border-top: 2px solid #ff3333;
             z-index: 10;
         }
+
+        /* Menu de Contexto Customizado */
+        #context-menu {
+            display: none;
+            position: absolute;
+            background: var(--timeline-controls-bg);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            z-index: 1000;
+            border-radius: 4px;
+            padding: 4px 0;
+            width: 130px;
+        }
+        .context-menu-item {
+            padding: 6px 12px;
+            font-size: 11px;
+            cursor: pointer;
+            color: var(--text-color);
+        }
+        .context-menu-item:hover {
+            background: #4CAF50;
+            color: #fff;
+        }
     </style>
 </head>
 <body>
 
 <div id="ui">
 
-    <details open>
+    <details>
         <summary>📁 Arquivo e Projeto</summary>
         <div class="menu-content">
             <div class="control-block">
@@ -402,7 +425,7 @@
         </div>
     </details>
 
-    <details open>
+    <details>
         <summary>🛠️ Ferramentas de Gizmo</summary>
         <div class="menu-content">
             <label style="font-size: 11px;">Modo de Gizmo:</label>
@@ -447,6 +470,7 @@
         <button id="btn-play">► Play</button>
         <button id="btn-add-keyframe" style="background: #2e7d32;">F6 - Keyframe</button>
         <button id="btn-clear-keyframe" style="background: #c62828;">F7 - Limpar</button>
+        <button id="btn-insert-space" style="background: #0277bd;" title="Inserir espaço de 1 frame e interpolar">➕ Inserir Frame</button>
         <button id="btn-undo" title="Desfazer (Ctrl+Z)">↩ Undo</button>
         <button id="btn-center-scene" style="background: #6a1b9a;" title="Centralizar Visualização da Cena">🎯 Centralizar Cena</button>
         
@@ -475,6 +499,14 @@
         <div class="timeline-ruler" id="timeline-ruler"></div>
         <div class="timeline-track" id="timeline-track"></div>
     </div>
+</div>
+
+<!-- Menu de Contexto Customizado -->
+<div id="context-menu">
+    <div class="context-item" id="ctx-copy" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">📋 Copiar Keyframe</div>
+    <div class="context-item" id="ctx-paste" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">📋 Colar Keyframe</div>
+    <div class="context-item" id="ctx-remove" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">🗑️ Remover Frame</div>
+    <div class="context-item" id="ctx-clear" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">❌ Limpar Keyframe</div>
 </div>
 
 <script type="importmap">
@@ -755,7 +787,7 @@ function pushState() {
         }));
         snapshot.set(frameIdx, poseCopy);
     });
-    undoStack.push(snapshot);
+    undoStack.push({ snapshot, totalFrames });
     if (undoStack.length > MAX_HISTORY) undoStack.shift();
     redoStack.length = 0;
 }
@@ -771,10 +803,12 @@ function undo() {
         }));
         currentSnapshot.set(frameIdx, poseCopy);
     });
-    redoStack.push(currentSnapshot);
+    redoStack.push({ snapshot: currentSnapshot, totalFrames });
 
-    const previousState = undoStack.pop();
-    restoreState(previousState);
+    const prevStateObj = undoStack.pop();
+    totalFrames = prevStateObj.totalFrames;
+    document.getElementById('total-frames-input').value = totalFrames;
+    restoreState(prevStateObj.snapshot);
 }
 
 function redo() {
@@ -788,10 +822,12 @@ function redo() {
         }));
         currentSnapshot.set(frameIdx, poseCopy);
     });
-    undoStack.push(currentSnapshot);
+    undoStack.push({ snapshot: currentSnapshot, totalFrames });
 
-    const nextState = redoStack.pop();
-    restoreState(nextState);
+    const nextStateObj = redoStack.pop();
+    totalFrames = nextStateObj.totalFrames;
+    document.getElementById('total-frames-input').value = totalFrames;
+    restoreState(nextStateObj.snapshot);
 }
 
 function restoreState(snapshotMap) {
@@ -804,9 +840,12 @@ function restoreState(snapshotMap) {
         }));
         keyframesMap.set(frameIdx, poseCopy);
     });
-    updateTimelineGrid();
+    buildFlashTimelineUI();
     applyPoseForFrame(currentFrame);
 }
+
+// COPIAR / COLAR KEYFRAME
+let copiedKeyframeData = null;
 
 // ESTRUTURA DE SELEÇÃO MÚLTIPLA E PIVÔ
 let selectedBones = [];
@@ -1270,7 +1309,6 @@ function loadOBJFromText(textData) {
     processLoadedModel(obj, []);
 }
 
-// SINCRONIZAÇÃO ENTRE ANIMAÇÃO DO MIXAMO E TIMELINE
 document.getElementById('embedded-anim-select').addEventListener('change', (e) => {
     const index = e.target.value;
     if (activeAction) {
@@ -1283,7 +1321,6 @@ document.getElementById('embedded-anim-select').addEventListener('change', (e) =
         activeAction = mixer.clipAction(clip);
         activeAction.play();
 
-        // Ajusta a quantidade total de frames baseado na duração do clipe do Mixamo
         const calculatedFrames = Math.ceil(clip.duration * targetFPS);
         if (calculatedFrames > 0) {
             totalFrames = calculatedFrames;
@@ -1297,7 +1334,6 @@ document.getElementById('embedded-anim-select').addEventListener('change', (e) =
     }
 });
 
-// CONVERTE A ANIMAÇÃO DO MIXAMO EM KEYFRAMES PARA A TIMELINE
 document.getElementById('btn-bake-anim').addEventListener('click', () => {
     if (!activeAction || !mixer) {
         return alert('Selecione primeiro uma animação do Mixamo no menu suspenso.');
@@ -1324,7 +1360,6 @@ document.getElementById('btn-bake-anim').addEventListener('click', () => {
         keyframesMap.set(frameIdx, poseSnapshot);
     }
 
-    // Desativa o mixer para utilizar diretamente a Timeline gravada
     activeAction.stop();
     activeAction = null;
     document.getElementById('embedded-anim-select').value = "";
@@ -1510,11 +1545,116 @@ function clearKeyframe(frameIdx) {
     applyPoseForFrame(currentFrame);
 }
 
+// INSERIR FRAME ENTRE FRAMES (CRIAR ESPAÇO E DESLOCAR KEYFRAMES POSTERIORES)
+function insertFrameAt(targetFrame) {
+    pushState();
+    totalFrames++;
+    document.getElementById('total-frames-input').value = totalFrames;
+
+    // Desloca todos os keyframes à frente para a direita
+    const newMap = new Map();
+    keyframesMap.forEach((pose, fIdx) => {
+        if (fIdx >= targetFrame) {
+            newMap.set(fIdx + 1, pose);
+        } else {
+            newMap.set(fIdx, pose);
+        }
+    });
+    keyframesMap = newMap;
+    
+    // Interpola e cria automaticamente o keyframe no novo espaço inserido
+    applyPoseForFrame(targetFrame);
+    saveKeyframe(targetFrame, false, false);
+
+    buildFlashTimelineUI();
+    selectFrame(targetFrame);
+}
+
+// REMOVER FRAME (DELETAR O FRAME ESPECÍFICO E PUXAR OS DEMAIS PARA TRÁS)
+function removeFrameAt(targetFrame) {
+    if (totalFrames <= 2) return alert('O limite mínimo é de 2 frames.');
+    pushState();
+    totalFrames--;
+    document.getElementById('total-frames-input').value = totalFrames;
+
+    const newMap = new Map();
+    keyframesMap.forEach((pose, fIdx) => {
+        if (fIdx > targetFrame) {
+            newMap.set(fIdx - 1, pose);
+        } else if (fIdx < targetFrame) {
+            newMap.set(fIdx, pose);
+        }
+        // fIdx === targetFrame é removido
+    });
+    keyframesMap = newMap;
+
+    buildFlashTimelineUI();
+    selectFrame(Math.min(currentFrame, totalFrames - 1));
+}
+
+document.getElementById('btn-insert-space').addEventListener('click', () => {
+    insertFrameAt(currentFrame);
+});
+
+// MENU DE CONTEXTO COM BOTÃO DIREITO NA TIMELINE
+const contextMenu = document.getElementById('context-menu');
+let contextTargetFrame = 0;
+
+document.getElementById('timeline-track').addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const cell = e.target.closest('.frame-cell');
+    if (!cell) return;
+
+    contextTargetFrame = parseInt(cell.dataset.frame);
+    
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - 140)}px`;
+    contextMenu.style.top = `${e.clientY - 110}px`;
+});
+
+window.addEventListener('click', () => {
+    contextMenu.style.display = 'none';
+});
+
+document.getElementById('ctx-copy').addEventListener('click', () => {
+    if (keyframesMap.has(contextTargetFrame)) {
+        const pose = keyframesMap.get(contextTargetFrame);
+        copiedKeyframeData = pose.map(p => ({
+            position: p.position.clone(),
+            quaternion: p.quaternion.clone(),
+            scale: p.scale.clone()
+        }));
+        alert(`Keyframe do Frame ${contextTargetFrame + 1} copiado!`);
+    } else {
+        alert('Este frame não possui um Keyframe salvo para copiar.');
+    }
+});
+
+document.getElementById('ctx-paste').addEventListener('click', () => {
+    if (!copiedKeyframeData) return alert('Nenhum keyframe copiado na memória.');
+    pushState();
+    const poseCopy = copiedKeyframeData.map(p => ({
+        position: p.position.clone(),
+        quaternion: p.quaternion.clone(),
+        scale: p.scale.clone()
+    }));
+    keyframesMap.set(contextTargetFrame, poseCopy);
+    updateTimelineGrid();
+    selectFrame(contextTargetFrame);
+});
+
+document.getElementById('ctx-remove').addEventListener('click', () => {
+    removeFrameAt(contextTargetFrame);
+});
+
+document.getElementById('ctx-clear').addEventListener('click', () => {
+    clearKeyframe(contextTargetFrame);
+});
+
 function selectFrame(frameIdx) {
     currentFrame = Math.max(0, Math.min(totalFrames - 1, frameIdx));
     document.getElementById('current-frame-text').innerText = currentFrame + 1;
 
-    // Se houver animação do Mixamo selecionada, sincroniza o tempo exato do clipe com o frame
     if (mixer && activeAction) {
         const time = currentFrame / targetFPS;
         mixer.setTime(time);
@@ -1527,7 +1667,6 @@ function selectFrame(frameIdx) {
 function applyPoseForFrame(frameIdx) {
     if (allBones.length === 0) return;
 
-    // Aplica keyframes customizados por cima da pose (se houver)
     if (keyframesMap.has(frameIdx)) {
         const pose = keyframesMap.get(frameIdx);
         allBones.forEach((bone, idx) => {
@@ -1603,10 +1742,8 @@ function centerScene() {
 document.getElementById('btn-center-scene').addEventListener('click', centerScene);
 
 function serializeProjectData() {
-    // Garante que a Timeline captura o estado mesclado das poses
     const keyframesArr = [];
     
-    // Se não houver keyframes manuais definidos, salva o estado atual ou gera do clipe
     if (keyframesMap.size === 0 && activeAction) {
         for (let frameIdx = 0; frameIdx < totalFrames; frameIdx++) {
             const time = frameIdx / targetFPS;
@@ -1716,7 +1853,11 @@ function handleTimelineScrub(e) {
     }
 }
 
-scrollArea.addEventListener('mousedown', (e) => { isScrubbing = true; handleTimelineScrub(e); });
+scrollArea.addEventListener('mousedown', (e) => { 
+    if (e.button !== 0) return; // Apenas botão esquerdo para scrub
+    isScrubbing = true; 
+    handleTimelineScrub(e); 
+});
 window.addEventListener('mousemove', (e) => { if (isScrubbing) handleTimelineScrub(e); });
 window.addEventListener('mouseup', () => { isScrubbing = false; });
 
