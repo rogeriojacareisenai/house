@@ -14,6 +14,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <!-- OrbitControls -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- OBJLoader para importação de ficheiros .obj -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; user-select: none; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -142,7 +144,7 @@
                     </button>
                 </div>
 
-                <!-- Furniture Catalog -->
+                <!-- Furniture Catalog & OBJ Import -->
                 <div>
                     <h3 class="text-xs font-bold tracking-wider text-slate-500 uppercase mb-3">Adicionar Móveis</h3>
                     <div class="grid grid-cols-2 gap-2">
@@ -165,6 +167,12 @@
                             <i data-lucide="bath" class="w-4 h-4 text-sky-600"></i> Sanitário
                         </button>
                     </div>
+
+                    <!-- Botão para importar ficheiro .OBJ -->
+                    <label class="mt-3 w-full bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-medium py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-2 text-xs cursor-pointer shadow-sm">
+                        <i data-lucide="file-up" class="w-4 h-4 text-indigo-600"></i> Importar Objeto (.OBJ)
+                        <input type="file" id="import-obj-file" accept=".obj" onchange="importOBJFile(event)" class="hidden">
+                    </label>
                 </div>
 
                 <!-- Properties Panel -->
@@ -352,8 +360,11 @@
             walls: [],    // { id, x1, y1, x2, y2, thickness, height, floor, color, texture }
             doors: [],    // { id, wallId, offset, width, height, isHollow, floor, color, texture }
             windows: [],  // { id, wallId, offset, width, height, sillHeight, isHollow, floor, color, texture }
-            furniture: [] // { id, type, name, x, y, rotation, width, depth, height, floor, color, texture }
+            furniture: [] // { id, type, name, x, y, rotation, width, depth, height, floor, color, texture, objData }
         };
+
+        // Cache de dados parsing de OBJ para reuso no Three.js
+        const objCache = {};
 
         function formatUnit(valCm) {
             if (currentUnit === 'm') {
@@ -369,7 +380,6 @@
             }
             return num;
         }
-
 
         function normalizeProjectAppearance() {
             project.walls.forEach(w => { if (!w.color) w.color='#64748b'; if (!w.texture) w.texture='none'; });
@@ -903,6 +913,43 @@
             updatePropertiesPanel();
         }
 
+        function importOBJFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const objText = e.target.result;
+                const fileName = file.name.replace(/\.obj$/i, '');
+                
+                // Dimensões padrão iniciais (100x100x100 cm)
+                const newObjItem = {
+                    id: 'obj_' + Date.now(),
+                    type: 'custom_obj',
+                    name: fileName || 'Objeto 3D',
+                    x: 0,
+                    y: 0,
+                    rotation: 0,
+                    width: 100,
+                    depth: 100,
+                    height: 100,
+                    floor: activeFloor,
+                    color: '#6366f1',
+                    texture: 'none',
+                    objData: objText
+                };
+
+                project.furniture.push(newObjItem);
+                saveAndSync();
+                showToast(`Objeto "${newObjItem.name}" importado com sucesso!`);
+                selectedItem = { type: 'furniture', id: newObjItem.id };
+                updatePropertiesPanel();
+
+                // Limpar input de ficheiro
+                event.target.value = '';
+            };
+            reader.readAsText(file);
+        }
 
         // --- Aparência: cores e texturas ---
         const TEXTURE_OPTIONS = [
@@ -1010,6 +1057,8 @@
                 if (!f) return;
                 const displayW = currentUnit === 'm' ? (f.width / 100).toFixed(2) : Math.round(f.width);
                 const displayD = currentUnit === 'm' ? (f.depth / 100).toFixed(2) : Math.round(f.depth);
+                const displayH = currentUnit === 'm' ? ((f.height || 60) / 100).toFixed(2) : Math.round(f.height || 60);
+
                 content.innerHTML = `
                     <div class="font-semibold text-slate-800 flex justify-between items-center">
                         <span>${f.name}</span>
@@ -1022,6 +1071,7 @@
                             <div><label class="text-slate-500">Largura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayW}" onchange="updateItemPropUnit('furniture', '${f.id}', 'width', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                             <div><label class="text-slate-500">Profundidade (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayD}" onchange="updateItemPropUnit('furniture', '${f.id}', 'depth', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                         </div>
+                        <div><label class="text-slate-500">Altura (${unitLbl})</label><input type="number" step="${currentUnit==='m'?'0.05':'1'}" value="${displayH}" onchange="updateItemPropUnit('furniture', '${f.id}', 'height', this.value)" class="w-full bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700"></div>
                         ${colorTextureControls('furniture', f.id, f)}
                     </div>
                 `;
@@ -1235,7 +1285,7 @@
                 ctx2D.restore();
             }
 
-            // Móveis
+            // Móveis / Objetos Customizados
             for (let f of project.furniture) {
                 if ((f.floor === 'baixo' && !showFloorBaixo) || (f.floor === 'cima' && !showFloorCima)) continue;
                 const pt = worldToScreen(f.x, f.y);
@@ -1251,8 +1301,8 @@
                 }
 
                 const wPx = f.width * (scale2D * 0.5), dPx = f.depth * (scale2D * 0.5);
-                ctx2D.fillStyle = selectedItem && selectedItem.id === f.id ? 'rgba(99, 102, 241, 0.3)' : make2DPattern(f, '#f1f5f9');
-                ctx2D.strokeStyle = selectedItem && selectedItem.id === f.id ? '#4f46e5' : '#94a3b8';
+                ctx2D.fillStyle = selectedItem && selectedItem.id === f.id ? 'rgba(99, 102, 241, 0.3)' : make2DPattern(f, f.type === 'custom_obj' ? '#c7d2fe' : '#f1f5f9');
+                ctx2D.strokeStyle = selectedItem && selectedItem.id === f.id ? '#4f46e5' : f.type === 'custom_obj' ? '#6366f1' : '#94a3b8';
                 ctx2D.lineWidth = selectedItem && selectedItem.id === f.id ? 3 : 2;
                 ctx2D.fillRect(-wPx/2, -dPx/2, wPx, dPx);
                 ctx2D.strokeRect(-wPx/2, -dPx/2, wPx, dPx);
@@ -1623,20 +1673,75 @@
                 }
             }
 
+            // Processamento dos móveis e objetos customizados (.OBJ)
+            const loader = new THREE.OBJLoader();
+
             project.furniture.forEach(f => {
                 if ((f.floor === 'baixo' && !showFloorBaixo) || (f.floor === 'cima' && !showFloorCima)) return;
                 const group = new THREE.Group();
-                let color = 0x818cf8;
-                if (f.type === 'sofa') color = 0xfbbf24;
-                if (f.type === 'table') color = 0x34d399;
-                if (f.type === 'kitchen') color = 0x22d3ee;
-                const mesh = new THREE.Mesh(new THREE.BoxGeometry(f.width, f.height || 60, f.depth), make3DMaterial(f, `#${color.toString(16).padStart(6,'0')}`, {roughness:0.4}));
-                mesh.castShadow = true; mesh.receiveShadow = true;
-                mesh.position.y = (f.height || 60) / 2;
-                group.add(mesh);
-                
                 const baseY = f.floor === 'cima' ? standardGroundWallH : 0;
-                group.position.set(f.x, baseY, f.y);
+
+                if (f.type === 'custom_obj' && f.objData) {
+                    try {
+                        let parsedObj = objCache[f.id];
+                        if (!parsedObj) {
+                            parsedObj = loader.parse(f.objData);
+                            objCache[f.id] = parsedObj;
+                        }
+
+                        const cloneObj = parsedObj.clone();
+                        const objMaterial = make3DMaterial(f, '#6366f1', { roughness: 0.5 });
+
+                        // Calcular Bounding Box original do OBJ para ajustar ao tamanho de f.width, f.height, f.depth
+                        const box = new THREE.Box3().setFromObject(cloneObj);
+                        const size = new THREE.Vector3();
+                        box.getSize(size);
+                        const center = new THREE.Vector3();
+                        box.getCenter(center);
+
+                        // Centralizar pivô do objeto
+                        cloneObj.position.sub(center);
+
+                        const scaleX = size.x > 0 ? f.width / size.x : 1;
+                        const scaleY = size.y > 0 ? (f.height || 100) / size.y : 1;
+                        const scaleZ = size.z > 0 ? f.depth / size.z : 1;
+
+                        cloneObj.scale.set(scaleX, scaleY, scaleZ);
+
+                        cloneObj.traverse((child) => {
+                            if (child.isMesh) {
+                                child.material = objMaterial;
+                                child.castShadow = true;
+                                child.receiveShadow = true;
+                            }
+                        });
+
+                        group.add(cloneObj);
+                        group.position.set(f.x, baseY + (f.height || 100) / 2, f.y);
+                    } catch (err) {
+                        console.error("Erro ao carregar modelo OBJ:", err);
+                        // Fallback em caso de erro no parse do OBJ
+                        const mesh = new THREE.Mesh(
+                            new THREE.BoxGeometry(f.width, f.height || 60, f.depth),
+                            make3DMaterial(f, '#e11d48', { roughness: 0.4 })
+                        );
+                        mesh.castShadow = true; mesh.receiveShadow = true;
+                        mesh.position.y = (f.height || 60) / 2;
+                        group.add(mesh);
+                        group.position.set(f.x, baseY, f.y);
+                    }
+                } else {
+                    let color = 0x818cf8;
+                    if (f.type === 'sofa') color = 0xfbbf24;
+                    if (f.type === 'table') color = 0x34d399;
+                    if (f.type === 'kitchen') color = 0x22d3ee;
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(f.width, f.height || 60, f.depth), make3DMaterial(f, `#${color.toString(16).padStart(6,'0')}`, {roughness:0.4}));
+                    mesh.castShadow = true; mesh.receiveShadow = true;
+                    mesh.position.y = (f.height || 60) / 2;
+                    group.add(mesh);
+                    group.position.set(f.x, baseY, f.y);
+                }
+
                 group.rotation.y = -(f.rotation || 0) * Math.PI / 180;
                 houseGroup3D.add(group);
             });
