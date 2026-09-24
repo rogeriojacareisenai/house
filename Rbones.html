@@ -7,7 +7,7 @@
     <style>
         :root {
             --bg-color: #1a1a1a;
-            --panel-bg: rgba(0, 0, 0, 0.85);
+            --panel-bg: rgba(25, 25, 25, 0.92);
             --text-color: #ffffff;
             --border-color: #444;
             --timeline-bg: #2b2b2b;
@@ -19,12 +19,11 @@
             --keyframe-dot: #000000;
             --input-bg: #222;
             --tween-line-color: #800020;
-            --summary-bg: rgba(255, 255, 255, 0.1);
         }
 
         body.light-theme {
             --bg-color: #e0e0e0;
-            --panel-bg: rgba(255, 255, 255, 0.9);
+            --panel-bg: rgba(240, 240, 240, 0.92);
             --text-color: #111111;
             --border-color: #ccc;
             --timeline-bg: #f0f0f0;
@@ -36,28 +35,10 @@
             --keyframe-dot: #111111;
             --input-bg: #ffffff;
             --tween-line-color: #800020;
-            --summary-bg: rgba(0, 0, 0, 0.08);
         }
 
         body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); user-select: none; transition: background-color 0.3s; }
         
-        #ui {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: var(--panel-bg);
-            color: var(--text-color);
-            padding: 10px;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            z-index: 100;
-            width: 290px;
-            max-height: calc(100vh - 150px);
-            overflow-y: auto;
-            border: 1px solid var(--border-color);
-        }
         button, input, select { cursor: pointer; padding: 4px; }
         .active { background: #4CAF50; color: white; border: none; }
         .btn-group { display: flex; gap: 4px; }
@@ -66,40 +47,59 @@
         .section-title { font-size: 11px; font-weight: bold; color: #4CAF50; text-transform: uppercase; }
         .slider-row { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
 
-        #ui details {
+        /* Janelas Flutuantes Independentes */
+        .floating-panel {
+            position: absolute;
+            background: var(--panel-bg);
+            color: var(--text-color);
+            border-radius: 8px;
             border: 1px solid var(--border-color);
-            border-radius: 6px;
-            background: rgba(0, 0, 0, 0.2);
-            overflow: hidden;
-            transition: background 0.2s;
+            z-index: 100;
+            width: 270px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
         }
 
-        #ui details[open] { padding-bottom: 6px; }
-
-        #ui summary {
+        .panel-header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 10px;
             font-size: 11px;
             font-weight: bold;
-            padding: 6px 8px;
-            cursor: pointer;
-            background: var(--summary-bg);
-            border-bottom: 1px solid transparent;
-            list-style: none;
+            cursor: move;
+            border-top-left-radius: 7px;
+            border-top-right-radius: 7px;
+            border-bottom: 1px solid var(--border-color);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
 
-        #ui summary::-webkit-details-marker { display: none; }
-        #ui summary::after { content: '▼'; font-size: 8px; transition: transform 0.2s; opacity: 0.7; }
-        #ui details[open] summary::after { transform: rotate(-180deg); }
-        #ui summary:hover { background: rgba(255, 255, 255, 0.2); }
-        #ui details[open] summary { border-bottom-color: var(--border-color); }
+        .panel-header button.minimize-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-color);
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .panel-header button.minimize-btn:hover { color: #4CAF50; }
 
-        .menu-content { padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
+        .panel-body {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
         .control-block { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
         .status-text { font-size: 10px; color: #888; }
 
-        #ui select, #ui input[type="file"] {
+        select, input[type="file"], input[type="number"], input[type="text"] {
             font-size: 11px;
             background: var(--input-bg);
             color: var(--text-color);
@@ -170,10 +170,6 @@
         .timeline-field input {
             width: 38px;
             text-align: center;
-            background: var(--input-bg);
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
         }
 
         .timeline-scroll-area {
@@ -293,177 +289,194 @@
 </head>
 <body>
 
-<div id="ui">
-
-    <details>
-        <summary>📁 Arquivo e Projeto</summary>
-        <div class="menu-content">
-            <div class="control-block">
-                <label>Carregar Modelo (OBJ/FBX/glTF/GLB):</label>
-                <input type="file" id="file-input" accept=".obj, .fbx, .gltf, .glb">
-                <span id="model-status" class="status-text">Nenhum modelo carregado.</span>
-            </div>
-
-            <div id="embedded-anim-container" class="control-block" style="display: none;">
-                <label>Animações (Mixamo / Embutidas):</label>
-                <select id="embedded-anim-select"></select>
-                <button id="btn-bake-anim" style="background: #e65100; color: #fff; margin-top: 4px; font-size: 11px;">📌 Converter Mixamo em Keyframes</button>
-            </div>
-
-            <div class="control-block">
-                <label>Textura Base (Color / Albedo):</label>
-                <input type="file" id="map-albedo" accept="image/png, image/jpeg">
-            </div>
-
-            <div class="control-block">
-                <label>Mapa de Normal (Normal Map):</label>
-                <input type="file" id="map-normal" accept="image/png, image/jpeg">
-            </div>
-
-            <div class="control-block">
-                <label>Rugosidade (Roughness Map):</label>
-                <input type="file" id="map-roughness" accept="image/png, image/jpeg">
-            </div>
-
-            <div class="control-block">
-                <label>Metálico (Metalness Map):</label>
-                <input type="file" id="map-metalness" accept="image/png, image/jpeg">
-            </div>
-
-            <div class="control-block">
-                <label>Oclusão Ambiental (AO Map):</label>
-                <input type="file" id="map-ao" accept="image/png, image/jpeg">
-            </div>
-
-            <span id="texture-status" class="status-text">Texturas originais preservadas.</span>
-
-            <div class="control-block">
-                <label>Sessão no Navegador:</label>
-                <div class="btn-group">
-                    <button id="btn-save-session" style="background: #2e7d32; color: #fff;">💾 Salvar</button>
-                    <button id="btn-load-session" style="background: #ef6c00; color: #fff;">📂 Carregar</button>
-                </div>
-            </div>
+<!-- Painel 1: Arquivo e Projeto -->
+<div class="floating-panel" id="panel-file" style="top: 10px; left: 10px;">
+    <div class="panel-header">
+        <span>📁 Arquivo e Projeto</span>
+        <button class="minimize-btn" onclick="toggleMinimize('panel-file')">_</button>
+    </div>
+    <div class="panel-body">
+        <div class="control-block">
+            <label>Carregar Modelo (OBJ/FBX/glTF/GLB):</label>
+            <input type="file" id="file-input" accept=".obj, .fbx, .gltf, .glb">
+            <span id="model-status" class="status-text">Nenhum modelo carregado.</span>
         </div>
-    </details>
 
-    <details>
-        <summary>💡 Ambiente e Iluminação</summary>
-        <div class="menu-content">
+        <div id="embedded-anim-container" class="control-block" style="display: none;">
+            <label>Animações (Mixamo / Embutidas):</label>
+            <select id="embedded-anim-select"></select>
+            <button id="btn-bake-anim" style="background: #e65100; color: #fff; margin-top: 4px; font-size: 11px;">📌 Converter Mixamo em Keyframes</button>
+        </div>
+
+        <div class="control-block">
+            <label>Textura Base (Color / Albedo):</label>
+            <input type="file" id="map-albedo" accept="image/png, image/jpeg">
+        </div>
+
+        <div class="control-block">
+            <label>Mapa de Normal (Normal Map):</label>
+            <input type="file" id="map-normal" accept="image/png, image/jpeg">
+        </div>
+
+        <div class="control-block">
+            <label>Rugosidade (Roughness Map):</label>
+            <input type="file" id="map-roughness" accept="image/png, image/jpeg">
+        </div>
+
+        <div class="control-block">
+            <label>Metálico (Metalness Map):</label>
+            <input type="file" id="map-metalness" accept="image/png, image/jpeg">
+        </div>
+
+        <div class="control-block">
+            <label>Oclusão Ambiental (AO Map):</label>
+            <input type="file" id="map-ao" accept="image/png, image/jpeg">
+        </div>
+
+        <span id="texture-status" class="status-text">Texturas originais preservadas.</span>
+
+        <div class="control-block">
+            <label>Sessão no Navegador:</label>
             <div class="btn-group">
-                <button id="btn-theme-toggle">🌓 Tema Light/Dark</button>
-            </div>
-
-            <div class="control-block">
-                <label>Iluminação Ambiente:</label>
-                <select id="ambient-light-select">
-                    <option value="neutral">💡 Neutra / Padrão</option>
-                    <option value="daylight">☀️ Luz Diurna / Dia Ensolarado</option>
-                    <option value="sunset">🌅 Pôr do Sol / Golden Hour</option>
-                    <option value="night">🌙 Luz Noturna / Luar</option>
-                    <option value="studio">🎬 Estúdio / Softbox</option>
-                    <option value="cyberpunk">🛈 Neon / Cyberpunk</option>
-                    <option value="fire">🔥 Lareira / Fogo</option>
-                    <option value="forest">🌲 Floresta / Místico Verde</option>
-                    <option value="abyssal">🌊 Abissal / Oceano Profundo</option>
-                    <option value="synthwave">🌆 Synthwave / Neon Retrô</option>
-                    <option value="dramatic_sunset">🌇 Pôr do Sol Dramático</option>
-                </select>
+                <button id="btn-save-session" style="background: #2e7d32; color: #fff;">💾 Salvar</button>
+                <button id="btn-load-session" style="background: #ef6c00; color: #fff;">📂 Carregar</button>
             </div>
         </div>
-    </details>
-
-    <details>
-        <summary>👁️ Visualização e Renderização</summary>
-        <div class="menu-content">
-            <div class="control-block">
-                <label>Modo de Renderização (Estilo/Material):</label>
-                <select id="render-mode-select">
-                    <option value="normal">Padrão (Texturado / Original)</option>
-                    <option value="metallic">Metálico Refletivo</option>
-                    <option value="toon">Cartoon / Toon Shader</option>
-                    <option value="wireframe">Wireframe (Linhas de Malha)</option>
-                    <option value="glass">Glass / Vidro Transparente</option>
-                    <option value="matcap">Matcap (Escultura / Argila Cinza)</option>
-                    <option value="normals">Normais de Superfície (RGB)</option>
-                    <option value="xray">Raio-X / X-Ray</option>
-                    <option value="clay">Argila Vermelha (Terracota)</option>
-                    <option value="gold">Ouro Polido</option>
-                    <option value="hologram">Holograma Tron</option>
-                    <option value="neon_glow">Neon Glow Cyber</option>
-                    <option value="depth">Mapa de Profundidade (Depth)</option>
-                    <option value="bounding_box">Caixa Delimitadora (Bounding Box)</option>
-                    <option value="unlit">Unlit (Sem Sombra / Flat)</option>
-                </select>
-            </div>
-
-            <div class="checkbox-row">
-                <input type="checkbox" id="chk-ground" checked>
-                <label for="chk-ground">Exibir Chão Infinito (Piso/Grade)</label>
-            </div>
-
-            <div class="checkbox-row">
-                <input type="checkbox" id="chk-skeleton" checked>
-                <label for="chk-skeleton">Exibir Esqueleto</label>
-            </div>
-
-            <div class="checkbox-row">
-                <input type="checkbox" id="chk-pickers" checked>
-                <label for="chk-pickers">Exibir Juntas Interativas</label>
-            </div>
-
-            <div class="slider-row">
-                <label>Tamanho das Juntas:</label>
-                <input type="range" id="picker-radius-slider" min="0.5" max="6.0" step="0.2" value="1.8">
-            </div>
-
-            <div class="slider-row">
-                <label>Opacidade da Malha:</label>
-                <input type="range" id="opacity-slider" min="0.0" max="1.0" step="0.05" value="1.0">
-            </div>
-        </div>
-    </details>
-
-    <details>
-        <summary>🛠️ Ferramentas de Gizmo</summary>
-        <div class="menu-content">
-            <label style="font-size: 11px;">Modo de Gizmo:</label>
-            <div class="btn-group">
-                <button id="btn-mode-translate" class="active">Mover</button>
-                <button id="btn-mode-rotate">Rotacionar</button>
-                <button id="btn-mode-scale">Escalonar</button>
-            </div>
-
-            <button id="btn-select-root" style="background: #1976d2; color: #fff; font-size: 11px; margin-top: 4px;">🦴 Selecionar Raiz (Todo o Esqueleto)</button>
-            <span style="font-size: 10px; opacity: 0.8; margin-top: 2px;">Dica: Use <b>Shift + Clique</b> para selecionar múltiplos bones.</span>
-        </div>
-    </details>
-
-    <details id="bone-details" style="display: none;">
-        <summary>🦴 Osso / Objeto Selecionado</summary>
-        <div class="menu-content">
-            <div id="bone-panel">
-                <span class="section-title" id="selected-bone-name">Osso Selecionado</span>
-                
-                <div style="font-size: 10px; font-weight: bold; margin-top: 4px;">Posição:</div>
-                <div class="coord-group">
-                    <div class="coord-field"><label>X</label><input type="number" id="pos-x" step="0.1"></div>
-                    <div class="coord-field"><label>Y</label><input type="number" id="pos-y" step="0.1"></div>
-                    <div class="coord-field"><label>Z</label><input type="number" id="pos-z" step="0.1"></div>
-                </div>
-
-                <div style="font-size: 10px; font-weight: bold; margin-top: 4px;">Rotação (°):</div>
-                <div class="coord-group">
-                    <div class="coord-field"><label>X</label><input type="number" id="rot-x" step="1"></div>
-                    <div class="coord-field"><label>Y</label><input type="number" id="rot-y" step="1"></div>
-                    <div class="coord-field"><label>Z</label><input type="number" id="rot-z" step="1"></div>
-                </div>
-            </div>
-        </div>
-    </details>
-
+    </div>
 </div>
 
+<!-- Painel 2: Ambiente e Iluminação -->
+<div class="floating-panel" id="panel-light" style="top: 10px; left: 290px;">
+    <div class="panel-header">
+        <span>💡 Ambiente e Iluminação</span>
+        <button class="minimize-btn" onclick="toggleMinimize('panel-light')">_</button>
+    </div>
+    <div class="panel-body">
+        <div class="btn-group">
+            <button id="btn-theme-toggle">🌓 Tema Light/Dark</button>
+        </div>
+
+        <div class="control-block">
+            <label>Iluminação Ambiente:</label>
+            <select id="ambient-light-select">
+                <option value="neutral">💡 Neutra / Padrão</option>
+                <option value="daylight">☀️ Luz Diurna / Dia Ensolarado</option>
+                <option value="sunset">🌅 Pôr do Sol / Golden Hour</option>
+                <option value="night">🌙 Luz Noturna / Luar</option>
+                <option value="studio">🎬 Estúdio / Softbox</option>
+                <option value="cyberpunk">🛈 Neon / Cyberpunk</option>
+                <option value="fire">🔥 Lareira / Fogo</option>
+                <option value="forest">🌲 Floresta / Místico Verde</option>
+                <option value="abyssal">🌊 Abissal / Oceano Profundo</option>
+                <option value="synthwave">🌆 Synthwave / Neon Retrô</option>
+                <option value="dramatic_sunset">🌇 Pôr do Sol Dramático</option>
+            </select>
+        </div>
+    </div>
+</div>
+
+<!-- Painel 3: Visualização e Renderização -->
+<div class="floating-panel" id="panel-render" style="top: 10px; left: 570px;">
+    <div class="panel-header">
+        <span>👁️ Visualização e Renderização</span>
+        <button class="minimize-btn" onclick="toggleMinimize('panel-render')">_</button>
+    </div>
+    <div class="panel-body">
+        <div class="control-block">
+            <label>Modo de Renderização (Estilo/Material):</label>
+            <select id="render-mode-select">
+                <option value="normal">Padrão (Texturado / Original)</option>
+                <option value="metallic">Metálico Refletivo</option>
+                <option value="toon">Cartoon / Toon Shader</option>
+                <option value="wireframe">Wireframe (Linhas de Malha)</option>
+                <option value="glass">Glass / Vidro Transparente</option>
+                <option value="matcap">Matcap (Escultura / Argila Cinza)</option>
+                <option value="normals">Normais de Superfície (RGB)</option>
+                <option value="xray">Raio-X / X-Ray</option>
+                <option value="clay">Argila Vermelha (Terracota)</option>
+                <option value="gold">Ouro Polido</option>
+                <option value="hologram">Holograma Tron</option>
+                <option value="neon_glow">Neon Glow Cyber</option>
+                <option value="depth">Mapa de Profundidade (Depth)</option>
+                <option value="bounding_box">Caixa Delimitadora (Bounding Box)</option>
+                <option value="unlit">Unlit (Sem Sombra / Flat)</option>
+            </select>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="chk-ground" checked>
+            <label for="chk-ground">Exibir Chão Infinito (Piso/Grade)</label>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="chk-skeleton" checked>
+            <label for="chk-skeleton">Exibir Esqueleto</label>
+        </div>
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="chk-pickers" checked>
+            <label for="chk-pickers">Exibir Juntas Interativas</label>
+        </div>
+
+        <div class="slider-row">
+            <label>Tamanho das Juntas:</label>
+            <input type="range" id="picker-radius-slider" min="0.5" max="6.0" step="0.2" value="1.8">
+        </div>
+
+        <div class="slider-row">
+            <label>Opacidade da Malha:</label>
+            <input type="range" id="opacity-slider" min="0.0" max="1.0" step="0.05" value="1.0">
+        </div>
+    </div>
+</div>
+
+<!-- Painel 4: Ferramentas de Gizmo -->
+<div class="floating-panel" id="panel-gizmo" style="top: 240px; left: 10px;">
+    <div class="panel-header">
+        <span>🛠️ Ferramentas de Gizmo</span>
+        <button class="minimize-btn" onclick="toggleMinimize('panel-gizmo')">_</button>
+    </div>
+    <div class="panel-body">
+        <label style="font-size: 11px;">Modo de Gizmo:</label>
+        <div class="btn-group">
+            <button id="btn-mode-translate" class="active">Mover</button>
+            <button id="btn-mode-rotate">Rotacionar</button>
+            <button id="btn-mode-scale">Escalonar</button>
+        </div>
+
+        <button id="btn-select-root" style="background: #1976d2; color: #fff; font-size: 11px; margin-top: 4px;">🦴 Selecionar Raiz (Todo o Esqueleto)</button>
+        <span style="font-size: 10px; opacity: 0.8; margin-top: 2px;">Dica: Use <b>Shift + Clique</b> para selecionar múltiplos bones.</span>
+    </div>
+</div>
+
+<!-- Painel 5: Osso / Objeto Selecionado -->
+<div class="floating-panel" id="bone-details" style="top: 240px; left: 290px; display: none;">
+    <div class="panel-header">
+        <span>🦴 Osso Selecionado</span>
+        <button class="minimize-btn" onclick="toggleMinimize('bone-details')">_</button>
+    </div>
+    <div class="panel-body">
+        <div id="bone-panel">
+            <span class="section-title" id="selected-bone-name">Osso Selecionado</span>
+            
+            <div style="font-size: 10px; font-weight: bold; margin-top: 4px;">Posição:</div>
+            <div class="coord-group">
+                <div class="coord-field"><label>X</label><input type="number" id="pos-x" step="0.1"></div>
+                <div class="coord-field"><label>Y</label><input type="number" id="pos-y" step="0.1"></div>
+                <div class="coord-field"><label>Z</label><input type="number" id="pos-z" step="0.1"></div>
+            </div>
+
+            <div style="font-size: 10px; font-weight: bold; margin-top: 4px;">Rotação (°):</div>
+            <div class="coord-group">
+                <div class="coord-field"><label>X</label><input type="number" id="rot-x" step="1"></div>
+                <div class="coord-field"><label>Y</label><input type="number" id="rot-y" step="1"></div>
+                <div class="coord-field"><label>Z</label><input type="number" id="rot-z" step="1"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Timeline na parte inferior -->
 <div id="flash-timeline-container">
     <div class="timeline-controls">
         <button id="btn-play">► Play</button>
@@ -514,6 +527,56 @@
       "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
     }
   }
+</script>
+
+<script>
+// Função para minimizar/expandir janelas flutuantes
+function toggleMinimize(panelId) {
+    const panel = document.getElementById(panelId);
+    const body = panel.querySelector('.panel-body');
+    if (body.style.display === 'none') {
+        body.style.display = 'flex';
+    } else {
+        body.style.display = 'none';
+    }
+}
+
+// Sistema global de arrastar janelas flutuantes (Draggable)
+let activePanel = null;
+let initialX = 0, initialY = 0;
+
+document.addEventListener('mousedown', (e) => {
+    const header = e.target.closest('.panel-header');
+    if (!header) return;
+    activePanel = header.closest('.floating-panel');
+    if (!activePanel) return;
+
+    // Traz para a frente da tela
+    document.querySelectorAll('.floating-panel').forEach(p => p.style.zIndex = '100');
+    activePanel.style.zIndex = '101';
+
+    initialX = e.clientX - activePanel.offsetLeft;
+    initialY = e.clientY - activePanel.offsetTop;
+});
+
+document.addEventListener('mousemove', (e) => {
+    if (!activePanel) return;
+    e.preventDefault();
+    
+    let newX = e.clientX - initialX;
+    let newY = e.clientY - initialY;
+
+    // Limites de tela básicos
+    newX = Math.max(0, Math.min(window.innerWidth - activePanel.offsetWidth, newX));
+    newY = Math.max(0, Math.min(window.innerHeight - 130 - activePanel.offsetHeight, newY));
+
+    activePanel.style.left = `${newX}px`;
+    activePanel.style.top = `${newY}px`;
+});
+
+document.addEventListener('mouseup', () => {
+    activePanel = null;
+});
 </script>
 
 <script type="module">
@@ -1384,7 +1447,6 @@ function clearCurrentModel() {
     document.getElementById('texture-status').innerText = "Texturas originais preservadas.";
 
     document.getElementById('bone-details').style.display = 'none';
-    document.getElementById('bone-panel').style.display = 'none';
 }
 
 function updateHelpers() {
@@ -1428,9 +1490,7 @@ function selectBone(bone, multiSelect = false) {
     transformControls.attach(pivotObject);
 
     const boneDetails = document.getElementById('bone-details');
-    boneDetails.style.display = 'block';
-    boneDetails.open = true;
-    document.getElementById('bone-panel').style.display = 'flex';
+    boneDetails.style.display = 'flex';
 
     if (selectedBones.length === 1) {
         const singleBone = selectedBones[0];
@@ -1538,7 +1598,6 @@ function clearKeyframe(frameIdx) {
     applyPoseForFrame(currentFrame);
 }
 
-// INSERIR FRAME (CRIA ESPAÇO, MANTÉM COMO CÉLULA SIMPLES E MOSTRA INTERPOLAÇÃO SE HOUVER KEYFRAME ANTES/DEPOIS)
 function insertFrameAt(targetFrame) {
     pushState();
     totalFrames++;
@@ -1554,9 +1613,7 @@ function insertFrameAt(targetFrame) {
     });
     keyframesMap = newMap;
     
-    // Não criamos keyframe em 'targetFrame', apenas aplicamos o valor interpolado para visualização
     applyPoseForFrame(targetFrame);
-
     buildFlashTimelineUI();
     selectFrame(targetFrame);
 }
