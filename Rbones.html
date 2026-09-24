@@ -273,7 +273,7 @@
             z-index: 1000;
             border-radius: 4px;
             padding: 4px 0;
-            width: 130px;
+            width: 160px;
         }
         .context-menu-item {
             padding: 6px 12px;
@@ -514,10 +514,12 @@
 </div>
 
 <div id="context-menu">
-    <div class="context-item" id="ctx-copy" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">📋 Copiar Keyframe</div>
-    <div class="context-item" id="ctx-paste" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">📋 Colar Keyframe</div>
-    <div class="context-item" id="ctx-remove" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">🗑️ Remover Frame</div>
-    <div class="context-item" id="ctx-clear" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">❌ Limpar Keyframe</div>
+    <div class="context-menu-item" id="ctx-copy">📋 Copiar Keyframe</div>
+    <div class="context-menu-item" id="ctx-paste">📋 Colar Keyframe</div>
+    <div class="context-menu-item" id="ctx-remove">🗑️ Remover Frame</div>
+    <div class="context-menu-item" id="ctx-clear">❌ Limpar Keyframe</div>
+    <div class="context-menu-item" id="ctx-save-transparent" style="border-top: 1px solid var(--border-color); color: #4CAF50;">📷 Salvar Fundo Transparente</div>
+    <div class="context-menu-item" id="ctx-save-current" style="color: #4CAF50;">📷 Salvar Atual</div>
 </div>
 
 <script type="importmap">
@@ -530,7 +532,6 @@
 </script>
 
 <script>
-// Função para minimizar/expandir janelas flutuantes
 function toggleMinimize(panelId) {
     const panel = document.getElementById(panelId);
     const body = panel.querySelector('.panel-body');
@@ -541,7 +542,6 @@ function toggleMinimize(panelId) {
     }
 }
 
-// Sistema global de arrastar janelas flutuantes (Draggable)
 let activePanel = null;
 let initialX = 0, initialY = 0;
 
@@ -551,7 +551,6 @@ document.addEventListener('mousedown', (e) => {
     activePanel = header.closest('.floating-panel');
     if (!activePanel) return;
 
-    // Traz para a frente da tela
     document.querySelectorAll('.floating-panel').forEach(p => p.style.zIndex = '100');
     activePanel.style.zIndex = '101';
 
@@ -566,7 +565,6 @@ document.addEventListener('mousemove', (e) => {
     let newX = e.clientX - initialX;
     let newY = e.clientY - initialY;
 
-    // Limites de tela básicos
     newX = Math.max(0, Math.min(window.innerWidth - activePanel.offsetWidth, newX));
     newY = Math.max(0, Math.min(window.innerHeight - 130 - activePanel.offsetHeight, newY));
 
@@ -612,7 +610,8 @@ scene.add(groundGroup);
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 120), 0.1, 5000);
 camera.position.set(0, 100, 250);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+// ATENÇÃO: preserveDrawingBuffer ativado para permitir exportação via toDataURL()
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight - 120);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
@@ -1082,6 +1081,9 @@ let keyframesMap = new Map();
 let isPlaying = false;
 let playInterval = null;
 let targetFPS = 30;
+
+// Contador global incremental para nomeação automática dos arquivos PNG
+let pngExportCounter = 1;
 
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
@@ -1653,8 +1655,8 @@ document.getElementById('timeline-track').addEventListener('contextmenu', (e) =>
     contextTargetFrame = parseInt(cell.dataset.frame);
     
     contextMenu.style.display = 'block';
-    contextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - 140)}px`;
-    contextMenu.style.top = `${e.clientY - 110}px`;
+    contextMenu.style.left = `${Math.min(e.clientX, window.innerWidth - 170)}px`;
+    contextMenu.style.top = `${e.clientY - 160}px`;
 });
 
 window.addEventListener('click', () => {
@@ -1694,6 +1696,68 @@ document.getElementById('ctx-remove').addEventListener('click', () => {
 
 document.getElementById('ctx-clear').addEventListener('click', () => {
     clearKeyframe(contextTargetFrame);
+});
+
+// Função auxiliar para disparar o download da imagem PNG capturada
+function downloadCanvasAsPNG(transparent = false) {
+    // Muda temporariamente para o frame alvo antes de exportar
+    const previousFrame = currentFrame;
+    selectFrame(contextTargetFrame);
+
+    // Oculta temporariamente elementos auxiliares (esqueleto, juntas, gizmo) para a foto sair limpa
+    const oldSkeletonVisible = skeletonHelper ? skeletonHelper.visible : false;
+    if (skeletonHelper) skeletonHelper.visible = false;
+
+    const oldPickersVisibility = bonePickers.map(p => p.visible);
+    bonePickers.forEach(p => p.visible = false);
+
+    const oldGizmoVisible = transformControls.visible;
+    transformControls.visible = false;
+
+    // Se fundo transparente for solicitado, oculta temporariamente o ground/chão e limpa a cor de fundo da cena
+    const oldGroundVisible = groundGroup.visible;
+    const oldBg = scene.background;
+    if (transparent) {
+        groundGroup.visible = false;
+        scene.background = null;
+        renderer.setClearColor(0x000000, 0);
+    }
+
+    // Força renderização atualizada
+    renderer.render(scene, camera);
+
+    // Gera o Data URL do canvas
+    const dataURL = renderer.domElement.toDataURL('image/png');
+
+    // Restaura o estado visual original
+    if (skeletonHelper) skeletonHelper.visible = oldSkeletonVisible;
+    bonePickers.forEach((p, idx) => p.visible = oldPickersVisibility[idx]);
+    transformControls.visible = oldGizmoVisible;
+
+    if (transparent) {
+        groundGroup.visible = oldGroundVisible;
+        scene.background = oldBg;
+    }
+
+    // Retorna para o frame original em que o usuário estava
+    selectFrame(previousFrame);
+
+    // Dispara o download com numeração automática formatada com zeros à esquerda (ex: 001, 002...)
+    const paddedNum = String(pngExportCounter++).padStart(3, '0');
+    const filename = `frame_${paddedNum}.png`;
+
+    const link = document.createElement('a');
+    link.download = filename;
+    link.href = dataURL;
+    link.click();
+}
+
+document.getElementById('ctx-save-transparent').addEventListener('click', () => {
+    downloadCanvasAsPNG(true);
+});
+
+document.getElementById('ctx-save-current').addEventListener('click', () => {
+    downloadCanvasAsPNG(false);
 });
 
 function selectFrame(frameIdx) {
