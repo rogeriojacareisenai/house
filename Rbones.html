@@ -46,14 +46,14 @@
             left: 10px;
             background: var(--panel-bg);
             color: var(--text-color);
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
             display: flex;
             flex-direction: column;
             gap: 8px;
             z-index: 100;
             width: 280px;
-            max-height: 60vh;
+            max-height: calc(100vh - 150px);
             overflow-y: auto;
             border: 1px solid var(--border-color);
         }
@@ -64,6 +64,83 @@
         .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
         .section-title { font-size: 11px; font-weight: bold; color: #4CAF50; text-transform: uppercase; }
         .slider-row { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+
+        /* ESTILIZAÇÃO DOS MENUS SUSPENSOS (DETAILS / SUMMARY) */
+        #ui details {
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            transition: background 0.2s;
+        }
+
+        #ui details[open] {
+            padding-bottom: 6px;
+        }
+
+        #ui summary {
+            font-size: 11px;
+            font-weight: bold;
+            padding: 6px 8px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid transparent;
+            list-style: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        #ui summary::-webkit-details-marker {
+            display: none;
+        }
+
+        #ui summary::after {
+            content: '▼';
+            font-size: 8px;
+            transition: transform 0.2s;
+            opacity: 0.7;
+        }
+
+        #ui details[open] summary::after {
+            transform: rotate(-180deg);
+        }
+
+        #ui summary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        #ui details[open] summary {
+            border-bottom-color: var(--border-color);
+        }
+
+        .menu-content {
+            padding: 6px 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-block {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 11px;
+        }
+
+        .status-text {
+            font-size: 10px;
+            color: #888;
+        }
+
+        #ui select, #ui input[type="file"] {
+            font-size: 11px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 2px 4px;
+        }
 
         /* PAINEL DO OSSO / MODELO */
         #bone-panel {
@@ -234,99 +311,127 @@
 </head>
 <body>
 
-<!-- PAINEL LATERAL -->
+<!-- PAINEL LATERAL DE CONTROLES -->
 <div id="ui">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <label style="font-size: 11px;"><strong>1. Carregar Modelo (FBX/glTF/GLB):</strong></label>
-        <button id="btn-theme-toggle" style="font-size: 10px; padding: 2px 6px;">🌓 Tema Light/Dark</button>
-    </div>
-    <input type="file" id="file-input" accept=".fbx, .gltf, .glb" style="font-size: 11px;">
-    <span id="model-status" style="font-size: 10px; color: #888;">Nenhum modelo carregado.</span>
 
-    <!-- SEÇÃO DE ANIMAÇÕES EMBUTIDAS -->
-    <div id="embedded-anim-container" style="display: none; flex-direction: column; gap: 4px;">
-        <label style="font-size: 11px;"><strong>Animações Embutidas:</strong></label>
-        <select id="embedded-anim-select" style="font-size: 11px; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color);"></select>
-    </div>
+    <!-- CATEGORIA 1: ARQUIVO E PROJETO -->
+    <details open>
+        <summary>📁 Arquivo e Projeto</summary>
+        <div class="menu-content">
+            <div class="control-block">
+                <label>Carregar Modelo (FBX/glTF/GLB):</label>
+                <input type="file" id="file-input" accept=".fbx, .gltf, .glb">
+                <span id="model-status" class="status-text">Nenhum modelo carregado.</span>
+            </div>
 
-    <!-- SEÇÃO DE TEXTURA EXTERNA -->
-    <label style="font-size: 11px; margin-top: 4px;"><strong>2. Substituir Textura Externa (Opcional):</strong></label>
-    <input type="file" id="texture-input" accept="image/png, image/jpeg" style="font-size: 11px;">
-    <span id="texture-status" style="font-size: 10px; color: #888;">Textura do modelo preservada.</span>
+            <div id="embedded-anim-container" class="control-block" style="display: none;">
+                <label>Animações Embutidas:</label>
+                <select id="embedded-anim-select"></select>
+            </div>
 
-    <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
+            <div class="control-block">
+                <label>Textura Externa (Opcional):</label>
+                <input type="file" id="texture-input" accept="image/png, image/jpeg">
+                <span id="texture-status" class="status-text">Textura do modelo preservada.</span>
+            </div>
 
-    <!-- SEÇÃO DE LUZ AMBIENTE / PRESETS DE ILUMINAÇÃO -->
-    <div style="display: flex; flex-direction: column; gap: 4px;">
-        <label style="font-size: 11px;"><strong>Iluminação Ambiente:</strong></label>
-        <select id="ambient-light-select" style="font-size: 11px; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px;">
-            <option value="neutral">💡 Neutra / Padrão</option>
-            <option value="daylight">☀️ Luz Diurna / Dia Ensolarado</option>
-            <option value="sunset">🌅 Pôr do Sol / Golden Hour</option>
-            <option value="night">🌙 Luz Noturna / Luar</option>
-            <option value="studio">🎬 Estúdio / Softbox</option>
-            <option value="cyberpunk">🛈 Neon / Cyberpunk</option>
-        </select>
-    </div>
-
-    <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
-
-    <label style="font-size: 11px;"><strong>Sessão no Navegador:</strong></label>
-    <div class="btn-group">
-        <button id="btn-save-session" style="background: #2e7d32; color: #fff;">💾 Salvar Projeto</button>
-        <button id="btn-load-session" style="background: #ef6c00; color: #fff;">📂 Carregar Projeto</button>
-    </div>
-
-    <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
-
-    <div class="checkbox-row">
-        <input type="checkbox" id="chk-skeleton" checked>
-        <label for="chk-skeleton">Exibir Esqueleto</label>
-    </div>
-
-    <div class="checkbox-row">
-        <input type="checkbox" id="chk-pickers" checked>
-        <label for="chk-pickers">Exibir Juntas Interativas</label>
-    </div>
-
-    <div class="slider-row">
-        <label>Tamanho das Juntas:</label>
-        <input type="range" id="picker-radius-slider" min="0.5" max="6.0" step="0.2" value="1.8">
-    </div>
-
-    <div class="slider-row">
-        <label>Opacidade da Malha:</label>
-        <input type="range" id="opacity-slider" min="0.0" max="1.0" step="0.05" value="1.0">
-    </div>
-
-    <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
-
-    <label style="font-size: 11px;"><strong>Modo de Gizmo:</strong></label>
-    <div class="btn-group">
-        <button id="btn-mode-translate" class="active">Mover</button>
-        <button id="btn-mode-rotate">Rotacionar</button>
-        <button id="btn-mode-scale">Escalonar</button>
-    </div>
-
-    <button id="btn-select-root" style="background: #1976d2; color: #fff; font-size: 11px; margin-top: 4px;">🦴 Selecionar Raiz (Todo o Esqueleto)</button>
-
-    <div id="bone-panel" style="display: none;">
-        <span class="section-title" id="selected-bone-name">Osso Selecionado</span>
-        
-        <div style="font-size: 10px; font-weight: bold;">Posição:</div>
-        <div class="coord-group">
-            <div class="coord-field"><label>X</label><input type="number" id="pos-x" step="0.1"></div>
-            <div class="coord-field"><label>Y</label><input type="number" id="pos-y" step="0.1"></div>
-            <div class="coord-field"><label>Z</label><input type="number" id="pos-z" step="0.1"></div>
+            <div class="control-block">
+                <label>Sessão no Navegador:</label>
+                <div class="btn-group">
+                    <button id="btn-save-session" style="background: #2e7d32; color: #fff;">💾 Salvar</button>
+                    <button id="btn-load-session" style="background: #ef6c00; color: #fff;">📂 Carregar</button>
+                </div>
+            </div>
         </div>
+    </details>
 
-        <div style="font-size: 10px; font-weight: bold;">Rotação (°):</div>
-        <div class="coord-group">
-            <div class="coord-field"><label>X</label><input type="number" id="rot-x" step="1"></div>
-            <div class="coord-field"><label>Y</label><input type="number" id="rot-y" step="1"></div>
-            <div class="coord-field"><label>Z</label><input type="number" id="rot-z" step="1"></div>
+    <!-- CATEGORIA 2: AMBIENTE E ILUMINAÇÃO -->
+    <details>
+        <summary>💡 Ambiente e Iluminação</summary>
+        <div class="menu-content">
+            <div class="btn-group">
+                <button id="btn-theme-toggle">🌓 Tema Light/Dark</button>
+            </div>
+
+            <div class="control-block">
+                <label>Iluminação Ambiente:</label>
+                <select id="ambient-light-select">
+                    <option value="neutral">💡 Neutra / Padrão</option>
+                    <option value="daylight">☀️ Luz Diurna / Dia Ensolarado</option>
+                    <option value="sunset">🌅 Pôr do Sol / Golden Hour</option>
+                    <option value="night">🌙 Luz Noturna / Luar</option>
+                    <option value="studio">🎬 Estúdio / Softbox</option>
+                    <option value="cyberpunk">🛈 Neon / Cyberpunk</option>
+                </select>
+            </div>
         </div>
-    </div>
+    </details>
+
+    <!-- CATEGORIA 3: VISUALIZAÇÃO E RENDERIZAÇÃO -->
+    <details>
+        <summary>👁️ Visualização e Renderização</summary>
+        <div class="menu-content">
+            <div class="checkbox-row">
+                <input type="checkbox" id="chk-skeleton" checked>
+                <label for="chk-skeleton">Exibir Esqueleto</label>
+            </div>
+
+            <div class="checkbox-row">
+                <input type="checkbox" id="chk-pickers" checked>
+                <label for="chk-pickers">Exibir Juntas Interativas</label>
+            </div>
+
+            <div class="slider-row">
+                <label>Tamanho das Juntas:</label>
+                <input type="range" id="picker-radius-slider" min="0.5" max="6.0" step="0.2" value="1.8">
+            </div>
+
+            <div class="slider-row">
+                <label>Opacidade da Malha:</label>
+                <input type="range" id="opacity-slider" min="0.0" max="1.0" step="0.05" value="1.0">
+            </div>
+        </div>
+    </details>
+
+    <!-- CATEGORIA 4: FERRAMENTAS DE TRANSFORMAÇÃO -->
+    <details open>
+        <summary>🛠️ Ferramentas de Gizmo</summary>
+        <div class="menu-content">
+            <label style="font-size: 11px;">Modo de Gizmo:</label>
+            <div class="btn-group">
+                <button id="btn-mode-translate" class="active">Mover</button>
+                <button id="btn-mode-rotate">Rotacionar</button>
+                <button id="btn-mode-scale">Escalonar</button>
+            </div>
+
+            <button id="btn-select-root" style="background: #1976d2; color: #fff; font-size: 11px; margin-top: 4px;">🦴 Selecionar Raiz (Todo o Esqueleto)</button>
+        </div>
+    </details>
+
+    <!-- CATEGORIA 5: PROPRIEDADES DO OSSO SELECIONADO -->
+    <details id="bone-details" style="display: none;">
+        <summary>🦴 Osso / Objeto Selecionado</summary>
+        <div class="menu-content">
+            <div id="bone-panel">
+                <span class="section-title" id="selected-bone-name">Osso Selecionado</span>
+                
+                <div style="font-size: 10px; font-weight: bold; margin-top: 4px;">Posição:</div>
+                <div class="coord-group">
+                    <div class="coord-field"><label>X</label><input type="number" id="pos-x" step="0.1"></div>
+                    <div class="coord-field"><label>Y</label><input type="number" id="pos-y" step="0.1"></div>
+                    <div class="coord-field"><label>Z</label><input type="number" id="pos-z" step="0.1"></div>
+                </div>
+
+                <div style="font-size: 10px; font-weight: bold; margin-top: 4px;">Rotação (°):</div>
+                <div class="coord-group">
+                    <div class="coord-field"><label>X</label><input type="number" id="rot-x" step="1"></div>
+                    <div class="coord-field"><label>Y</label><input type="number" id="rot-y" step="1"></div>
+                    <div class="coord-field"><label>Z</label><input type="number" id="rot-z" step="1"></div>
+                </div>
+            </div>
+        </div>
+    </details>
+
 </div>
 
 <!-- TIMELINE FLASH -->
@@ -392,7 +497,7 @@ camera.position.set(0, 100, 250);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight - 120);
-renderer.outputColorSpace = THREE.SRGBColorSpace; // Garantir mapeamento correto de cores das texturas GLB
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 const orbit = new OrbitControls(camera, renderer.domElement);
@@ -406,12 +511,10 @@ const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
 dirLight.position.set(100, 200, 150);
 scene.add(dirLight);
 
-// Grupo para armazenar luzes secundárias criadas dinamicamente pelos presets (Softbox, Cyberpunk, etc.)
 const extraLightsGroup = new THREE.Group();
 scene.add(extraLightsGroup);
 
 function applyLightingPreset(preset) {
-    // Limpar luzes extras de presets anteriores
     while (extraLightsGroup.children.length > 0) {
         const obj = extraLightsGroup.children[0];
         extraLightsGroup.remove(obj);
@@ -420,7 +523,6 @@ function applyLightingPreset(preset) {
 
     switch (preset) {
         case 'daylight':
-            // Céu azulado suave com sol amarelo e intenso
             ambientLight.color.setHex(0xcae5ff);
             ambientLight.intensity = 0.9;
             dirLight.color.setHex(0xfffaed);
@@ -429,7 +531,6 @@ function applyLightingPreset(preset) {
             break;
 
         case 'sunset':
-            // Pôr do sol: tons alaranjados e avermelhados com luz solar rasante
             ambientLight.color.setHex(0xffaa77);
             ambientLight.intensity = 0.7;
             dirLight.color.setHex(0xff5500);
@@ -438,7 +539,6 @@ function applyLightingPreset(preset) {
             break;
 
         case 'night':
-            // Luar noturno: iluminação tênue em tom azul frio
             ambientLight.color.setHex(0x112244);
             ambientLight.intensity = 0.4;
             dirLight.color.setHex(0x6688ff);
@@ -447,42 +547,34 @@ function applyLightingPreset(preset) {
             break;
 
         case 'studio':
-            // Estúdio / Softbox: Luz de preenchimento de três pontos (Key, Fill, Rim)
             ambientLight.color.setHex(0xffffff);
             ambientLight.intensity = 0.6;
             
-            // Key light
             dirLight.color.setHex(0xffffff);
             dirLight.intensity = 1.2;
             dirLight.position.set(150, 150, 150);
 
-            // Fill light
             const fillLight = new THREE.DirectionalLight(0xddeeff, 0.6);
             fillLight.position.set(-150, 100, 150);
             extraLightsGroup.add(fillLight);
 
-            // Back / Rim light
             const rimLight = new THREE.DirectionalLight(0xffffff, 1.0);
             rimLight.position.set(0, 150, -200);
             extraLightsGroup.add(rimLight);
             break;
 
         case 'cyberpunk':
-            // Neon / Cyberpunk: contraste vibrante entre Rosa Magenta e Ciano
             ambientLight.color.setHex(0x220033);
             ambientLight.intensity = 0.5;
 
-            // Luz direcional Ciano
             dirLight.color.setHex(0x00ffff);
             dirLight.intensity = 1.8;
             dirLight.position.set(-150, 100, 100);
 
-            // Luz pontual Magenta
             const magentaPoint = new THREE.PointLight(0xff007f, 3.0, 500);
             magentaPoint.position.set(150, 80, -50);
             extraLightsGroup.add(magentaPoint);
 
-            // Luz de preenchimento Azul Elétrico
             const bluePoint = new THREE.PointLight(0x0055ff, 2.0, 400);
             bluePoint.position.set(0, -50, 150);
             extraLightsGroup.add(bluePoint);
@@ -490,7 +582,6 @@ function applyLightingPreset(preset) {
 
         case 'neutral':
         default:
-            // Preset Padrão: Luz branca equilibrada
             ambientLight.color.setHex(0xffffff);
             ambientLight.intensity = 1.2;
             dirLight.color.setHex(0xffffff);
@@ -500,7 +591,6 @@ function applyLightingPreset(preset) {
     }
 }
 
-// Event listener para troca de preset de luz ambiente
 document.getElementById('ambient-light-select').addEventListener('change', (e) => {
     applyLightingPreset(e.target.value);
     saveEnvironmentSettings();
@@ -665,7 +755,6 @@ let targetFPS = 12;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-// CARREGAR TEXTURA EXTERNA (SOBREPÕE A TEXTURA DO GLB SE FOR SELECIONADA)
 document.getElementById('texture-input').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -678,7 +767,7 @@ document.getElementById('texture-input').addEventListener('change', (event) => {
             texture.colorSpace = THREE.SRGBColorSpace;
             loadedTexture = texture;
             applyTextureToModel();
-            document.getElementById('texture-status').innerText = `Textura Manual: ${file.name}`;
+            document.getElementById('texture-status').innerText = `Textura: ${file.name}`;
         });
     };
 });
@@ -701,7 +790,6 @@ function applyTextureToModel() {
     });
 }
 
-// CARREGAR ARQUIVO (FBX / GLTF / GLB)
 document.getElementById('file-input').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -742,7 +830,6 @@ function processLoadedModel(model, modelAnimations = []) {
             child.material.transparent = true;
             child.material.opacity = parseFloat(document.getElementById('opacity-slider').value);
 
-            // Garante que texturas internas embutidas do GLB fiquem no espaço de cor correto
             if (child.material.map) {
                 child.material.map.colorSpace = THREE.SRGBColorSpace;
                 child.material.needsUpdate = true;
@@ -768,7 +855,6 @@ function processLoadedModel(model, modelAnimations = []) {
 
     if (loadedTexture) applyTextureToModel();
 
-    // GERENCIAMENTO DE ANIMAÇÕES EMBUTIDAS (GLTF / GLB / FBX)
     animations = modelAnimations;
     const animSelect = document.getElementById('embedded-anim-select');
     const animContainer = document.getElementById('embedded-anim-container');
@@ -835,6 +921,7 @@ function clearCurrentModel() {
     mixer = null;
     activeAction = null;
     animations = [];
+    document.getElementById('bone-details').style.display = 'none';
     document.getElementById('bone-panel').style.display = 'none';
 }
 
@@ -851,7 +938,12 @@ function updateHelpers() {
 function selectBone(bone) {
     selectedBone = bone;
     transformControls.attach(bone);
+    
+    const boneDetails = document.getElementById('bone-details');
+    boneDetails.style.display = 'block';
+    boneDetails.open = true;
     document.getElementById('bone-panel').style.display = 'flex';
+
     document.getElementById('selected-bone-name').innerText = (bone === characterGroup) ? 'Raiz (Todo o Esqueleto)' : (bone.name || 'Osso Selecionado');
     updateUIInputs();
 }
@@ -1209,7 +1301,7 @@ document.getElementById('opacity-slider').addEventListener('input', (e) => {
 });
 
 window.addEventListener('pointerdown', (event) => {
-    if (event.clientY > window.innerHeight - 120 || ['INPUT', 'BUTTON', 'LABEL', 'SELECT'].includes(event.target.tagName)) return;
+    if (event.clientY > window.innerHeight - 120 || ['INPUT', 'BUTTON', 'LABEL', 'SELECT', 'SUMMARY', 'DETAILS'].includes(event.target.tagName)) return;
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / (window.innerHeight - 120)) * 2 + 1;
     raycaster.setFromCamera(mouse, camera);
