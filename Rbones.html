@@ -268,7 +268,6 @@
             z-index: 10;
         }
 
-        /* Menu de Contexto Customizado */
         #context-menu {
             display: none;
             position: absolute;
@@ -501,7 +500,6 @@
     </div>
 </div>
 
-<!-- Menu de Contexto Customizado -->
 <div id="context-menu">
     <div class="context-item" id="ctx-copy" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">📋 Copiar Keyframe</div>
     <div class="context-item" id="ctx-paste" style="padding: 6px 12px; font-size: 11px; cursor: pointer;">📋 Colar Keyframe</div>
@@ -529,7 +527,6 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a1a);
 
-// PISO INFINITO E GRADE
 const groundGroup = new THREE.Group();
 const gridHelper = new THREE.GridHelper(2000, 200, 0x777777, 0x555555);
 gridHelper.position.y = -0.01;
@@ -560,7 +557,6 @@ document.body.appendChild(renderer.domElement);
 const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.target.set(0, 90, 0);
 
-// ILUMINAÇÃO DINÂMICA
 const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
 scene.add(ambientLight);
 
@@ -844,10 +840,8 @@ function restoreState(snapshotMap) {
     applyPoseForFrame(currentFrame);
 }
 
-// COPIAR / COLAR KEYFRAME
 let copiedKeyframeData = null;
 
-// ESTRUTURA DE SELEÇÃO MÚLTIPLA E PIVÔ
 let selectedBones = [];
 const pivotObject = new THREE.Object3D();
 scene.add(pivotObject);
@@ -956,7 +950,6 @@ let boneMap = new Map();
 let allBones = [];
 let originalMaterials = new Map();
 
-// GERENCIAMENTO DE MÚLTIPLAS TEXTURAS
 const loadedTextures = {
     map: null,          
     normalMap: null,    
@@ -1545,13 +1538,12 @@ function clearKeyframe(frameIdx) {
     applyPoseForFrame(currentFrame);
 }
 
-// INSERIR FRAME ENTRE FRAMES (CRIAR ESPAÇO E DESLOCAR KEYFRAMES POSTERIORES)
+// INSERIR FRAME (CRIA ESPAÇO, MANTÉM COMO CÉLULA SIMPLES E MOSTRA INTERPOLAÇÃO SE HOUVER KEYFRAME ANTES/DEPOIS)
 function insertFrameAt(targetFrame) {
     pushState();
     totalFrames++;
     document.getElementById('total-frames-input').value = totalFrames;
 
-    // Desloca todos os keyframes à frente para a direita
     const newMap = new Map();
     keyframesMap.forEach((pose, fIdx) => {
         if (fIdx >= targetFrame) {
@@ -1562,15 +1554,13 @@ function insertFrameAt(targetFrame) {
     });
     keyframesMap = newMap;
     
-    // Interpola e cria automaticamente o keyframe no novo espaço inserido
+    // Não criamos keyframe em 'targetFrame', apenas aplicamos o valor interpolado para visualização
     applyPoseForFrame(targetFrame);
-    saveKeyframe(targetFrame, false, false);
 
     buildFlashTimelineUI();
     selectFrame(targetFrame);
 }
 
-// REMOVER FRAME (DELETAR O FRAME ESPECÍFICO E PUXAR OS DEMAIS PARA TRÁS)
 function removeFrameAt(targetFrame) {
     if (totalFrames <= 2) return alert('O limite mínimo é de 2 frames.');
     pushState();
@@ -1584,7 +1574,6 @@ function removeFrameAt(targetFrame) {
         } else if (fIdx < targetFrame) {
             newMap.set(fIdx, pose);
         }
-        // fIdx === targetFrame é removido
     });
     keyframesMap = newMap;
 
@@ -1596,7 +1585,6 @@ document.getElementById('btn-insert-space').addEventListener('click', () => {
     insertFrameAt(currentFrame);
 });
 
-// MENU DE CONTEXTO COM BOTÃO DIREITO NA TIMELINE
 const contextMenu = document.getElementById('context-menu');
 let contextTargetFrame = 0;
 
@@ -1854,7 +1842,7 @@ function handleTimelineScrub(e) {
 }
 
 scrollArea.addEventListener('mousedown', (e) => { 
-    if (e.button !== 0) return; // Apenas botão esquerdo para scrub
+    if (e.button !== 0) return;
     isScrubbing = true; 
     handleTimelineScrub(e); 
 });
