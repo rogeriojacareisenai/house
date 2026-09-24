@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Animação e Leitura de FBX / glTF / GLB</title>
+    <title>Animação e Leitura de OBJ / FBX / glTF / GLB</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -81,7 +81,7 @@
             font-weight: bold;
             padding: 6px 8px;
             cursor: pointer;
-            background: var(--summary-bg); /* Fundo adicionado ao título da categoria */
+            background: var(--summary-bg);
             border-bottom: 1px solid transparent;
             list-style: none;
             display: flex;
@@ -277,8 +277,9 @@
         <summary>📁 Arquivo e Projeto</summary>
         <div class="menu-content">
             <div class="control-block">
-                <label>Carregar Modelo (FBX/glTF/GLB):</label>
-                <input type="file" id="file-input" accept=".fbx, .gltf, .glb">
+                <label>Carregar Modelo (OBJ/FBX/glTF/GLB):</label>
+                <!-- ATUALIZADO: Aceita .obj -->
+                <input type="file" id="file-input" accept=".obj, .fbx, .gltf, .glb">
                 <span id="model-status" class="status-text">Nenhum modelo carregado.</span>
             </div>
 
@@ -287,11 +288,33 @@
                 <select id="embedded-anim-select"></select>
             </div>
 
+            <!-- PAINEL DE MÚLTIPLAS TEXTURAS -->
             <div class="control-block">
-                <label>Textura Externa (Opcional):</label>
-                <input type="file" id="texture-input" accept="image/png, image/jpeg">
-                <span id="texture-status" class="status-text">Textura do modelo preservada.</span>
+                <label>Textura Base (Color / Albedo):</label>
+                <input type="file" id="map-albedo" accept="image/png, image/jpeg">
             </div>
+
+            <div class="control-block">
+                <label>Mapa de Normal (Normal Map):</label>
+                <input type="file" id="map-normal" accept="image/png, image/jpeg">
+            </div>
+
+            <div class="control-block">
+                <label>Rugosidade (Roughness Map):</label>
+                <input type="file" id="map-roughness" accept="image/png, image/jpeg">
+            </div>
+
+            <div class="control-block">
+                <label>Metálico (Metalness Map):</label>
+                <input type="file" id="map-metalness" accept="image/png, image/jpeg">
+            </div>
+
+            <div class="control-block">
+                <label>Oclusão Ambiental (AO Map):</label>
+                <input type="file" id="map-ao" accept="image/png, image/jpeg">
+            </div>
+
+            <span id="texture-status" class="status-text">Texturas originais preservadas.</span>
 
             <div class="control-block">
                 <label>Sessão no Navegador:</label>
@@ -467,16 +490,15 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'; // ATUALIZADO: Import do OBJLoader
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a1a);
 
-// CRIAR PISO INFINITO E GRADE DE SUPORTE
+// PISO INFINITO E GRADE
 const groundGroup = new THREE.Group();
-
-// Linha da grade alterada para cinza escuro (0x555555 e 0x777777)
 const gridHelper = new THREE.GridHelper(2000, 200, 0x777777, 0x555555);
 gridHelper.position.y = -0.01;
 groundGroup.add(gridHelper);
@@ -807,8 +829,65 @@ let bonePickers = [];
 let selectedBone = null;
 let boneMap = new Map();
 let allBones = [];
-let loadedTexture = null;
 let originalMaterials = new Map();
+
+// GERENCIAMENTO DE MÚLTIPLAS TEXTURAS
+const loadedTextures = {
+    map: null,          // Color / Albedo
+    normalMap: null,    // Normal
+    roughnessMap: null, // Roughness
+    metalnessMap: null, // Metalness
+    aoMap: null         // Ambient Occlusion
+};
+
+const textureLoader = new THREE.TextureLoader();
+
+function handleTextureUpload(inputId, mapType, isSRGB = false) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    input.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (e) => {
+            textureLoader.load(e.target.result, (texture) => {
+                texture.colorSpace = isSRGB ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+                loadedTextures[mapType] = texture;
+                applyTexturesToModel();
+                document.getElementById('texture-status').innerText = `Mapa ${mapType} alterado com sucesso!`;
+            });
+        };
+    });
+}
+
+handleTextureUpload('map-albedo', 'map', true);
+handleTextureUpload('map-normal', 'normalMap', false);
+handleTextureUpload('map-roughness', 'roughnessMap', false);
+handleTextureUpload('map-metalness', 'metalnessMap', false);
+handleTextureUpload('map-ao', 'aoMap', false);
+
+function applyTexturesToModel() {
+    if (!characterGroup) return;
+
+    characterGroup.traverse((child) => {
+        if (child.isMesh) {
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+
+            materials.forEach(mat => {
+                if (loadedTextures.map) mat.map = loadedTextures.map;
+                if (loadedTextures.normalMap) mat.normalMap = loadedTextures.normalMap;
+                if (loadedTextures.roughnessMap) mat.roughnessMap = loadedTextures.roughnessMap;
+                if (loadedTextures.metalnessMap) mat.metalnessMap = loadedTextures.metalnessMap;
+                if (loadedTextures.aoMap) mat.aoMap = loadedTextures.aoMap;
+
+                mat.needsUpdate = true;
+            });
+        }
+    });
+}
 
 let mixer = null;
 let animations = [];
@@ -826,41 +905,7 @@ let targetFPS = 12;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-document.getElementById('texture-input').addEventListener('change', (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = (e) => {
-        const textureLoader = new THREE.TextureLoader();
-        textureLoader.load(e.target.result, (texture) => {
-            texture.colorSpace = THREE.SRGBColorSpace;
-            loadedTexture = texture;
-            applyTextureToModel();
-            document.getElementById('texture-status').innerText = `Textura: ${file.name}`;
-        });
-    };
-});
-
-function applyTextureToModel() {
-    if (!characterGroup || !loadedTexture) return;
-
-    characterGroup.traverse((child) => {
-        if (child.isMesh) {
-            if (Array.isArray(child.material)) {
-                child.material.forEach(mat => {
-                    mat.map = loadedTexture;
-                    mat.needsUpdate = true;
-                });
-            } else if (child.material) {
-                child.material.map = loadedTexture;
-                child.material.needsUpdate = true;
-            }
-        }
-    });
-}
-
+// ATUALIZADO: Processamento de leitor para OBJ e formatos binários
 document.getElementById('file-input').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -870,14 +915,22 @@ document.getElementById('file-input').addEventListener('change', (event) => {
     document.getElementById('model-status').innerText = `Modelo: ${loadedFileName}`;
 
     const reader = new FileReader();
-    reader.readAsArrayBuffer(file);
-    reader.onload = (e) => {
-        if (ext === 'fbx') {
-            loadFBXFromArrayBuffer(e.target.result);
-        } else if (ext === 'gltf' || ext === 'glb') {
-            loadGLTFFromArrayBuffer(e.target.result);
-        }
-    };
+
+    if (ext === 'obj') {
+        reader.readAsText(file);
+        reader.onload = (e) => {
+            loadOBJFromText(e.target.result);
+        };
+    } else {
+        reader.readAsArrayBuffer(file);
+        reader.onload = (e) => {
+            if (ext === 'fbx') {
+                loadFBXFromArrayBuffer(e.target.result);
+            } else if (ext === 'gltf' || ext === 'glb') {
+                loadGLTFFromArrayBuffer(e.target.result);
+            }
+        };
+    }
 });
 
 function processLoadedModel(model, modelAnimations = []) {
@@ -925,7 +978,7 @@ function processLoadedModel(model, modelAnimations = []) {
         }
     });
 
-    if (loadedTexture) applyTextureToModel();
+    applyTexturesToModel();
 
     animations = modelAnimations;
     const animSelect = document.getElementById('embedded-anim-select');
@@ -1126,6 +1179,48 @@ function loadGLTFFromArrayBuffer(arrayBuffer) {
     });
 }
 
+// ATUALIZADO: Leitura de .OBJ com Auto-Escala e Centralização
+function loadOBJFromText(textData) {
+    const loader = new OBJLoader();
+    const obj = loader.parse(textData);
+
+    // 1. Garante que os materiais padrão sejam visíveis se o OBJ não trouxer MTL
+    obj.traverse((child) => {
+        if (child.isMesh) {
+            if (!child.material || (Array.isArray(child.material) && child.material.length === 0)) {
+                child.material = new THREE.MeshStandardMaterial({ color: 0xcccccc, side: THREE.DoubleSide });
+            }
+            // Recalcula as normais caso o ficheiro venha sem iluminação correta
+            if (child.geometry) {
+                child.geometry.computeVertexNormals();
+            }
+        }
+    });
+
+    // 2. Calcula os limites do modelo (Bounding Box)
+    const box = new THREE.Box3().setFromObject(obj);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    // 3. Centraliza a geometria na origem local
+    obj.position.sub(center);
+
+    // 4. Se o modelo for muito grande ou pequeno, ajusta para um tamanho padrão (ex: 100 unidades)
+    const maxDim = Math.max(size.x, size.y, size.z);
+    if (maxDim > 0) {
+        const targetSize = 100; // Tamanho ideal na cena
+        const scaleFactor = targetSize / maxDim;
+        obj.scale.setScalar(scaleFactor);
+    }
+
+    // 5. Eleva o modelo para que a base fique em cima do chão (opcional)
+    obj.position.y += (size.y * obj.scale.y) / 2;
+
+    processLoadedModel(obj, []);
+}
+
 document.getElementById('embedded-anim-select').addEventListener('change', (e) => {
     const index = e.target.value;
     if (activeAction) activeAction.stop();
@@ -1155,6 +1250,11 @@ function clearCurrentModel() {
     mixer = null;
     activeAction = null;
     animations = [];
+    
+    // Limpa texturas
+    Object.keys(loadedTextures).forEach(k => loadedTextures[k] = null);
+    document.getElementById('texture-status').innerText = "Texturas originais preservadas.";
+
     document.getElementById('bone-details').style.display = 'none';
     document.getElementById('bone-panel').style.display = 'none';
 }
