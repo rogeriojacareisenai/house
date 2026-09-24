@@ -39,7 +39,6 @@
 
         body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); user-select: none; transition: background-color 0.3s; }
         
-        /* PAINEL LATERAL DE CONTROLES */
         #ui {
             position: absolute;
             top: 10px;
@@ -52,7 +51,7 @@
             flex-direction: column;
             gap: 8px;
             z-index: 100;
-            width: 280px;
+            width: 290px;
             max-height: calc(100vh - 150px);
             overflow-y: auto;
             border: 1px solid var(--border-color);
@@ -65,7 +64,6 @@
         .section-title { font-size: 11px; font-weight: bold; color: #4CAF50; text-transform: uppercase; }
         .slider-row { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
 
-        /* ESTILIZAÇÃO DOS MENUS SUSPENSOS (DETAILS / SUMMARY) */
         #ui details {
             border: 1px solid var(--border-color);
             border-radius: 6px;
@@ -74,9 +72,7 @@
             transition: background 0.2s;
         }
 
-        #ui details[open] {
-            padding-bottom: 6px;
-        }
+        #ui details[open] { padding-bottom: 6px; }
 
         #ui summary {
             font-size: 11px;
@@ -91,47 +87,15 @@
             align-items: center;
         }
 
-        #ui summary::-webkit-details-marker {
-            display: none;
-        }
+        #ui summary::-webkit-details-marker { display: none; }
+        #ui summary::after { content: '▼'; font-size: 8px; transition: transform 0.2s; opacity: 0.7; }
+        #ui details[open] summary::after { transform: rotate(-180deg); }
+        #ui summary:hover { background: rgba(255, 255, 255, 0.1); }
+        #ui details[open] summary { border-bottom-color: var(--border-color); }
 
-        #ui summary::after {
-            content: '▼';
-            font-size: 8px;
-            transition: transform 0.2s;
-            opacity: 0.7;
-        }
-
-        #ui details[open] summary::after {
-            transform: rotate(-180deg);
-        }
-
-        #ui summary:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        #ui details[open] summary {
-            border-bottom-color: var(--border-color);
-        }
-
-        .menu-content {
-            padding: 6px 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .control-block {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            font-size: 11px;
-        }
-
-        .status-text {
-            font-size: 10px;
-            color: #888;
-        }
+        .menu-content { padding: 6px 8px; display: flex; flex-direction: column; gap: 6px; }
+        .control-block { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+        .status-text { font-size: 10px; color: #888; }
 
         #ui select, #ui input[type="file"] {
             font-size: 11px;
@@ -142,7 +106,6 @@
             padding: 2px 4px;
         }
 
-        /* PAINEL DO OSSO / MODELO */
         #bone-panel {
             background: rgba(125, 125, 125, 0.1);
             border: 1px solid var(--border-color);
@@ -157,7 +120,6 @@
         .coord-field label { font-size: 9px; opacity: 0.8; }
         .coord-field input { width: 100%; text-align: center; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 3px; font-size: 10px; }
 
-        /* TIMELINE ESTILO FLASH */
         #flash-timeline-container {
             position: absolute;
             bottom: 0;
@@ -221,7 +183,6 @@
             cursor: pointer;
         }
 
-        /* RÉGUA DE FRAMES */
         .timeline-ruler {
             height: 20px;
             background: var(--timeline-ruler-bg);
@@ -244,7 +205,6 @@
             pointer-events: none;
         }
 
-        /* TRILHA DE FRAMES */
         .timeline-track {
             height: 35px;
             display: flex;
@@ -263,9 +223,7 @@
             pointer-events: none;
         }
 
-        .frame-cell.has-keyframe {
-            background: var(--keyframe-bg);
-        }
+        .frame-cell.has-keyframe { background: var(--keyframe-bg); }
 
         .frame-cell.has-keyframe::after {
             content: '';
@@ -311,10 +269,8 @@
 </head>
 <body>
 
-<!-- PAINEL LATERAL DE CONTROLES -->
 <div id="ui">
 
-    <!-- CATEGORIA 1: ARQUIVO E PROJETO -->
     <details open>
         <summary>📁 Arquivo e Projeto</summary>
         <div class="menu-content">
@@ -345,7 +301,6 @@
         </div>
     </details>
 
-    <!-- CATEGORIA 2: AMBIENTE E ILUMINAÇÃO -->
     <details>
         <summary>💡 Ambiente e Iluminação</summary>
         <div class="menu-content">
@@ -362,15 +317,46 @@
                     <option value="night">🌙 Luz Noturna / Luar</option>
                     <option value="studio">🎬 Estúdio / Softbox</option>
                     <option value="cyberpunk">🛈 Neon / Cyberpunk</option>
+                    <!-- NOVOS 5 PRESETS DE LUZ -->
+                    <option value="fire">🔥 Lareira / Fogo</option>
+                    <option value="forest">🌲 Floresta / Místico Verde</option>
+                    <option value="abyssal">🌊 Abissal / Oceano Profundo</option>
+                    <option value="synthwave">🌆 Synthwave / Neon Retrô</option>
+                    <option value="dramatic_sunset">🌇 Pôr do Sol Dramático</option>
                 </select>
             </div>
         </div>
     </details>
 
-    <!-- CATEGORIA 3: VISUALIZAÇÃO E RENDERIZAÇÃO -->
     <details>
         <summary>👁️ Visualização e Renderização</summary>
         <div class="menu-content">
+            <div class="control-block">
+                <label>Modo de Renderização (Estilo/Material):</label>
+                <select id="render-mode-select">
+                    <option value="normal">Padrão (Texturado / Original)</option>
+                    <option value="metallic">Metálico Refletivo</option>
+                    <option value="toon">Cartoon / Toon Shader</option>
+                    <option value="wireframe">Wireframe (Linhas de Malha)</option>
+                    <option value="glass">Glass / Vidro Transparente</option>
+                    <option value="matcap">Matcap (Escultura / Argila Cinza)</option>
+                    <option value="normals">Normais de Superfície (RGB)</option>
+                    <option value="xray">Raio-X / X-Ray</option>
+                    <option value="clay">Argila Vermelha (Terracota)</option>
+                    <option value="gold">Ouro Polido</option>
+                    <option value="hologram">Holograma Tron</option>
+                    <option value="neon_glow">Neon Glow Cyber</option>
+                    <option value="depth">Mapa de Profundidade (Depth)</option>
+                    <option value="bounding_box">Caixa Delimitadora (Bounding Box)</option>
+                    <option value="unlit">Unlit (Sem Sombra / Flat)</option>
+                </select>
+            </div>
+
+            <div class="checkbox-row">
+                <input type="checkbox" id="chk-ground" checked>
+                <label for="chk-ground">Exibir Chão Infinito (Piso/Grade)</label>
+            </div>
+
             <div class="checkbox-row">
                 <input type="checkbox" id="chk-skeleton" checked>
                 <label for="chk-skeleton">Exibir Esqueleto</label>
@@ -393,7 +379,6 @@
         </div>
     </details>
 
-    <!-- CATEGORIA 4: FERRAMENTAS DE TRANSFORMAÇÃO -->
     <details open>
         <summary>🛠️ Ferramentas de Gizmo</summary>
         <div class="menu-content">
@@ -408,7 +393,6 @@
         </div>
     </details>
 
-    <!-- CATEGORIA 5: PROPRIEDADES DO OSSO SELECIONADO -->
     <details id="bone-details" style="display: none;">
         <summary>🦴 Osso / Objeto Selecionado</summary>
         <div class="menu-content">
@@ -434,7 +418,6 @@
 
 </div>
 
-<!-- TIMELINE FLASH -->
 <div id="flash-timeline-container">
     <div class="timeline-controls">
         <button id="btn-play">► Play</button>
@@ -489,10 +472,28 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a1a);
 
-let gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
-scene.add(gridHelper);
+// CRIAR PISO INFINITO E GRADE DE SUPORTE
+const groundGroup = new THREE.Group();
 
-const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 120), 0.1, 1000);
+const gridHelper = new THREE.GridHelper(2000, 200, 0x555555, 0x333333);
+gridHelper.position.y = -0.01;
+groundGroup.add(gridHelper);
+
+const planeGeo = new THREE.PlaneGeometry(10000, 10000);
+const planeMat = new THREE.MeshStandardMaterial({ 
+    color: 0x222222, 
+    roughness: 0.8, 
+    metalness: 0.2,
+    side: THREE.DoubleSide
+});
+const groundMesh = new THREE.Mesh(planeGeo, planeMat);
+groundMesh.rotation.x = -Math.PI / 2;
+groundMesh.receiveShadow = true;
+groundGroup.add(groundMesh);
+
+scene.add(groundGroup);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 120), 0.1, 5000);
 camera.position.set(0, 100, 250);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -503,7 +504,7 @@ document.body.appendChild(renderer.domElement);
 const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.target.set(0, 90, 0);
 
-// GERENCIAMENTO DE ILUMINAÇÃO DINÂMICA COM PRESETS
+// ILUMINAÇÃO DINÂMICA
 const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
 scene.add(ambientLight);
 
@@ -549,7 +550,6 @@ function applyLightingPreset(preset) {
         case 'studio':
             ambientLight.color.setHex(0xffffff);
             ambientLight.intensity = 0.6;
-            
             dirLight.color.setHex(0xffffff);
             dirLight.intensity = 1.2;
             dirLight.position.set(150, 150, 150);
@@ -580,6 +580,67 @@ function applyLightingPreset(preset) {
             extraLightsGroup.add(bluePoint);
             break;
 
+        /* NOVOS 5 PRESETS DE ILUMINAÇÃO */
+        case 'fire':
+            ambientLight.color.setHex(0x330d00);
+            ambientLight.intensity = 0.5;
+            dirLight.color.setHex(0xff4500);
+            dirLight.intensity = 2.2;
+            dirLight.position.set(0, 20, 80);
+
+            const firePoint = new THREE.PointLight(0xffaa00, 4.0, 300);
+            firePoint.position.set(0, 10, 50);
+            extraLightsGroup.add(firePoint);
+            break;
+
+        case 'forest':
+            ambientLight.color.setHex(0x0a220a);
+            ambientLight.intensity = 0.8;
+            dirLight.color.setHex(0x88ff88);
+            dirLight.intensity = 1.6;
+            dirLight.position.set(80, 200, 50);
+
+            const warmGreen = new THREE.DirectionalLight(0xddffaa, 0.5);
+            warmGreen.position.set(-100, 50, -100);
+            extraLightsGroup.add(warmGreen);
+            break;
+
+        case 'abyssal':
+            ambientLight.color.setHex(0x000a1a);
+            ambientLight.intensity = 0.3;
+            dirLight.color.setHex(0x0088cc);
+            dirLight.intensity = 1.2;
+            dirLight.position.set(0, 250, 0);
+
+            const cyanGlow = new THREE.PointLight(0x00ffaa, 2.0, 400);
+            cyanGlow.position.set(0, -100, 100);
+            extraLightsGroup.add(cyanGlow);
+            break;
+
+        case 'synthwave':
+            ambientLight.color.setHex(0x20002b);
+            ambientLight.intensity = 0.6;
+            dirLight.color.setHex(0xff007f);
+            dirLight.intensity = 2.5;
+            dirLight.position.set(-100, 100, -100);
+
+            const yellowSun = new THREE.DirectionalLight(0xffaa00, 1.5);
+            yellowSun.position.set(0, 20, -200);
+            extraLightsGroup.add(yellowSun);
+            break;
+
+        case 'dramatic_sunset':
+            ambientLight.color.setHex(0x401000);
+            ambientLight.intensity = 0.6;
+            dirLight.color.setHex(0xff3300);
+            dirLight.intensity = 3.0;
+            dirLight.position.set(-300, 30, -50);
+
+            const purpleSky = new THREE.DirectionalLight(0x6600cc, 0.8);
+            purpleSky.position.set(100, 150, 100);
+            extraLightsGroup.add(purpleSky);
+            break;
+
         case 'neutral':
         default:
             ambientLight.color.setHex(0xffffff);
@@ -604,9 +665,11 @@ function saveEnvironmentSettings() {
         theme: document.body.classList.contains('light-theme') ? 'light' : 'dark',
         showSkeleton: document.getElementById('chk-skeleton').checked,
         showPickers: document.getElementById('chk-pickers').checked,
+        showGround: document.getElementById('chk-ground').checked,
         pickerRadius: document.getElementById('picker-radius-slider').value,
         meshOpacity: document.getElementById('opacity-slider').value,
         ambientPreset: document.getElementById('ambient-light-select').value,
+        renderMode: document.getElementById('render-mode-select').value,
         cameraPos: [camera.position.x, camera.position.y, camera.position.z],
         cameraTarget: [orbit.target.x, orbit.target.y, orbit.target.z]
     };
@@ -622,18 +685,25 @@ function loadEnvironmentSettings() {
         if (settings.theme === 'light') {
             document.body.classList.add('light-theme');
             scene.background.setHex(0xe0e0e0);
-            scene.remove(gridHelper);
-            gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0xcccccc);
-            scene.add(gridHelper);
+            planeMat.color.setHex(0xcccccc);
         }
         if (settings.showSkeleton !== undefined) document.getElementById('chk-skeleton').checked = settings.showSkeleton;
         if (settings.showPickers !== undefined) document.getElementById('chk-pickers').checked = settings.showPickers;
+        if (settings.showGround !== undefined) {
+            document.getElementById('chk-ground').checked = settings.showGround;
+            groundGroup.visible = settings.showGround;
+        }
         if (settings.pickerRadius !== undefined) document.getElementById('picker-radius-slider').value = settings.pickerRadius;
         if (settings.meshOpacity !== undefined) document.getElementById('opacity-slider').value = settings.meshOpacity;
 
         if (settings.ambientPreset !== undefined) {
             document.getElementById('ambient-light-select').value = settings.ambientPreset;
             applyLightingPreset(settings.ambientPreset);
+        }
+
+        if (settings.renderMode !== undefined) {
+            document.getElementById('render-mode-select').value = settings.renderMode;
+            applyRenderMode(settings.renderMode);
         }
 
         if (settings.cameraPos) camera.position.set(...settings.cameraPos);
@@ -647,7 +717,6 @@ function loadEnvironmentSettings() {
 }
 
 orbit.addEventListener('end', saveEnvironmentSettings);
-loadEnvironmentSettings();
 
 const undoStack = [];
 const redoStack = [];
@@ -738,6 +807,7 @@ let selectedBone = null;
 let boneMap = new Map();
 let allBones = [];
 let loadedTexture = null;
+let originalMaterials = new Map();
 
 let mixer = null;
 let animations = [];
@@ -826,6 +896,7 @@ function processLoadedModel(model, modelAnimations = []) {
 
     characterGroup.traverse((child) => {
         if (child.isMesh) {
+            originalMaterials.set(child, child.material);
             child.material.side = THREE.DoubleSide;
             child.material.transparent = true;
             child.material.opacity = parseFloat(document.getElementById('opacity-slider').value);
@@ -873,12 +944,174 @@ function processLoadedModel(model, modelAnimations = []) {
         animContainer.style.display = 'none';
     }
 
+    applyRenderMode(document.getElementById('render-mode-select').value);
+
     saveKeyframe(0, true, false);
     buildFlashTimelineUI();
     selectFrame(0);
     selectBone(characterGroup);
     updateVisibility();
 }
+
+/* SISTEMA DE 15 TIPOS DE RENDERIZAÇÃO */
+function applyRenderMode(mode) {
+    if (!characterGroup) return;
+
+    const opacity = parseFloat(document.getElementById('opacity-slider').value);
+
+    characterGroup.traverse((child) => {
+        if (!child.isMesh) return;
+
+        const origMat = originalMaterials.get(child) || child.material;
+
+        switch (mode) {
+            case 'metallic':
+                child.material = new THREE.MeshStandardMaterial({
+                    color: 0xaaaaaa,
+                    metalness: 0.95,
+                    roughness: 0.1,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'toon':
+                child.material = new THREE.MeshToonMaterial({
+                    color: 0x33aafe,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'wireframe':
+                child.material = new THREE.MeshBasicMaterial({
+                    color: 0x00ff88,
+                    wireframe: true,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'glass':
+                child.material = new THREE.MeshPhysicalMaterial({
+                    color: 0xffffff,
+                    transmission: 0.9,
+                    opacity: 1.0,
+                    transparent: true,
+                    roughness: 0.05,
+                    ior: 1.5
+                });
+                break;
+
+            case 'matcap':
+                child.material = new THREE.MeshMatcapMaterial({
+                    color: 0xdddddd,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'normals':
+                child.material = new THREE.MeshNormalMaterial({
+                    wireframe: false,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'xray':
+                child.material = new THREE.MeshBasicMaterial({
+                    color: 0x00aaff,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: Math.min(opacity, 0.4),
+                    depthWrite: false
+                });
+                break;
+
+            case 'clay':
+                child.material = new THREE.MeshStandardMaterial({
+                    color: 0xb25238,
+                    roughness: 0.9,
+                    metalness: 0.0,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'gold':
+                child.material = new THREE.MeshStandardMaterial({
+                    color: 0xffd700,
+                    metalness: 0.9,
+                    roughness: 0.2,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'hologram':
+                child.material = new THREE.MeshBasicMaterial({
+                    color: 0x00ffff,
+                    wireframe: true,
+                    transparent: true,
+                    opacity: Math.min(opacity, 0.6)
+                });
+                break;
+
+            case 'neon_glow':
+                child.material = new THREE.MeshBasicMaterial({
+                    color: 0xff00ff,
+                    wireframe: false,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'depth':
+                child.material = new THREE.MeshDepthMaterial({
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'bounding_box':
+                child.material = new THREE.MeshBasicMaterial({
+                    color: 0xffff00,
+                    wireframe: true,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'unlit':
+                child.material = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    map: origMat.map || null,
+                    transparent: opacity < 1.0,
+                    opacity: opacity
+                });
+                break;
+
+            case 'normal':
+            default:
+                child.material = origMat;
+                child.material.transparent = opacity < 1.0;
+                child.material.opacity = opacity;
+                break;
+        }
+        child.material.needsUpdate = true;
+    });
+}
+
+document.getElementById('render-mode-select').addEventListener('change', (e) => {
+    applyRenderMode(e.target.value);
+    saveEnvironmentSettings();
+});
+
+document.getElementById('chk-ground').addEventListener('change', (e) => {
+    groundGroup.visible = e.target.checked;
+    saveEnvironmentSettings();
+});
 
 function loadFBXFromArrayBuffer(arrayBuffer) {
     const loader = new FBXLoader();
@@ -914,6 +1147,7 @@ function clearCurrentModel() {
     boneMap.clear();
     allBones = [];
     keyframesMap.clear();
+    originalMaterials.clear();
     undoStack.length = 0;
     redoStack.length = 0;
     transformControls.detach();
@@ -1128,17 +1362,17 @@ function serializeProjectData() {
 document.getElementById('btn-save-session').addEventListener('click', () => {
     localStorage.setItem(SESSION_PROJECT_KEY, JSON.stringify(serializeProjectData()));
     saveEnvironmentSettings();
-    alert('Projeto salvo com sucesso!');
+    alert('Projeto salvo no navegador!');
 });
 
 document.getElementById('btn-load-session').addEventListener('click', () => {
     const savedProject = localStorage.getItem(SESSION_PROJECT_KEY);
-    if (!savedProject) return alert('Nenhum projeto encontrado.');
+    if (!savedProject) return alert('Nenhum projeto encontrado salvo localmente.');
     try {
         applySerializedProject(JSON.parse(savedProject));
-        alert('Projeto carregado!');
+        alert('Projeto carregado com sucesso!');
     } catch (err) {
-        alert('Erro ao carregar: ' + err.message);
+        alert('Erro ao carregar projeto: ' + err.message);
     }
 });
 
@@ -1263,9 +1497,7 @@ document.getElementById('btn-theme-toggle').addEventListener('click', () => {
     document.body.classList.toggle('light-theme');
     const isLight = document.body.classList.contains('light-theme');
     scene.background.setHex(isLight ? 0xe0e0e0 : 0x1a1a1a);
-    scene.remove(gridHelper);
-    gridHelper = new THREE.GridHelper(20, 20, isLight ? 0x888888 : 0x444444, isLight ? 0xcccccc : 0x222222);
-    scene.add(gridHelper);
+    planeMat.color.setHex(isLight ? 0xcccccc : 0x222222);
     saveEnvironmentSettings();
 });
 
@@ -1295,8 +1527,7 @@ document.getElementById('chk-skeleton').addEventListener('change', () => { updat
 document.getElementById('chk-pickers').addEventListener('change', () => { updateVisibility(); saveEnvironmentSettings(); });
 
 document.getElementById('opacity-slider').addEventListener('input', (e) => {
-    const opacity = parseFloat(e.target.value);
-    if (characterGroup) characterGroup.traverse((child) => { if (child.isMesh) child.material.opacity = opacity; });
+    applyRenderMode(document.getElementById('render-mode-select').value);
     saveEnvironmentSettings();
 });
 
@@ -1311,6 +1542,8 @@ window.addEventListener('pointerdown', (event) => {
         if (targetBone) selectBone(targetBone);
     }
 });
+
+loadEnvironmentSettings();
 
 function animate() {
     requestAnimationFrame(animate);
