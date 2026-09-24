@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auto-Rigging e Leitor OBJ com Three.js</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: sans-serif; }
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+        input, button { cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div id="ui">
+    <label><strong>1. Carregar Modelo OBJ:</strong></label>
+    <input type="file" id="file-input" accept=".obj">
+    
+    <hr style="width: 100%; border: 0.5px solid #555;">
+    
+    <label><strong>2. Controles do Esqueleto:</strong></label>
+    <div>
+        <label>Rotação Osso Raiz (X):</label>
+        <input type="range" id="bone0-rot" min="-1.5" max="1.5" step="0.01" value="0" disabled>
+    </div>
+    <div>
+        <label>Rotação Osso Filho (Z):</label>
+        <input type="range" id="bone1-rot" min="-1.5" max="1.5" step="0.01" value="0" disabled>
+    </div>
+</div>
+
+<!-- Importação do Three.js e Loaders via CDN -->
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// --- CONFIGURAÇÃO DA CENA ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x222222);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.set(0, 5, 15);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+dirLight.position.set(5, 10, 7);
+scene.add(dirLight);
+
+// Variáveis para guardar as referências dos ossos
+let rootBone, childBone, skinnedMesh;
+
+// --- LEITOR DE ARQUIVO .OBJ ---
+document.getElementById('file-input').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const contents = e.target.result;
+        const loader = new OBJLoader();
+        const objGroup = loader.parse(contents);
+
+        // Procura a primeira geometria dentro do arquivo OBJ carregado
+        objGroup.traverse((child) => {
+            if (child.isMesh && !skinnedMesh) {
+                setupRigging(child.geometry);
+            }
+        });
+    };
+    reader.readAsText(file);
+});
+
+// --- CRIAÇÃO DOS OSSOS E SKINNING ---
+function setupRigging(geometry) {
+    // Se já existir uma malha na tela, remove
+    if (skinnedMesh) scene.remove(skinnedMesh);
+
+    // 1. Criar os Ossos (THREE.Bone)
+    rootBone = new THREE.Bone();
+    childBone = new THREE.Bone();
+
+    // Posicionamento relativo dos ossos no espaço 3D
+    rootBone.position.set(0, 0, 0);
+    childBone.position.set(0, 3, 0); // O osso filho fica 3 unidades acima
+    rootBone.add(childBone);
+
+    // 2. Criar o Esqueleto
+    const skeleton = new THREE.Skeleton([rootBone, childBone]);
+
+    // 3. Gerar Pesos Automáticos Básicos (Weight Painting via Código)
+    // Calcula a influência de cada osso com base no eixo Y dos vértices
+    const positionAttribute = geometry.attributes.position;
+    const skinIndices = [];
+    const skinWeights = [];
+
+    for (let i = 0; i < positionAttribute.count; i++) {
+        const y = positionAttribute.getY(i);
+
+        // Se o vértice está acima do ponto médio, o osso filho influencia mais
+        if (y > 1.5) {
+            skinIndices.push(0, 1, 0, 0);
+            skinWeights.push(0.2, 0.8, 0, 0); // 80% influenciado pelo osso filho
+        } else {
+            skinIndices.push(0, 1, 0, 0);
+            skinWeights.push(0.8, 0.2, 0, 0); // 80% influenciado pelo osso raiz
+        }
+    }
+
+    // Adiciona os atributos de pele à geometria do OBJ
+    geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndices, 4));
+    geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeights, 4));
+
+    // 4. Criar a SkinnedMesh
+    const material = new THREE.MeshStandardMaterial({ 
+        color: 0x00aaff, 
+        wireframe: true, 
+        side: THREE.DoubleSide 
+    });
+
+    skinnedMesh = new THREE.SkinnedMesh(geometry, material);
+    skinnedMesh.add(rootBone);
+    skinnedMesh.bind(skeleton);
+
+    // Visualizador de ossos (linhas brancas na tela)
+    const helper = new THREE.SkeletonHelper(skinnedMesh);
+    scene.add(helper);
+    scene.add(skinnedMesh);
+
+    // Habilitar controles na interface
+    document.getElementById('bone0-rot').disabled = false;
+    document.getElementById('bone1-rot').disabled = false;
+}
+
+// --- CONTROLES DE ROTAÇÃO (UI) ---
+document.getElementById('bone0-rot').addEventListener('input', (e) => {
+    if (rootBone) rootBone.rotation.x = parseFloat(e.target.value);
+});
+
+document.getElementById('bone1-rot').addEventListener('input', (e) => {
+    if (childBone) childBone.rotation.z = parseFloat(e.target.value);
+});
+
+// --- LOOP DE RENDERIZAÇÃO ---
+function animate() {
+    requestAnimationFrame(animate);
+    renderer.render(scene, camera);
+}
+animate();
+
+// Ajuste de janela flexível
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>
