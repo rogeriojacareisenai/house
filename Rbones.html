@@ -357,7 +357,7 @@
         </div>
 
         <div class="control-block">
-            <label>Iluminação Ambiente:</label>
+            <label>Preset de Iluminação:</label>
             <select id="ambient-light-select">
                 <option value="neutral">💡 Neutra / Padrão</option>
                 <option value="daylight">☀️ Luz Diurna / Dia Ensolarado</option>
@@ -372,6 +372,23 @@
                 <option value="dramatic_sunset">🌇 Pôr do Sol Dramático</option>
             </select>
         </div>
+
+        <div class="slider-row" style="margin-top: 4px;">
+            <label>Força da Luz Principal:</label>
+            <input type="range" id="light-intensity-slider" min="0.0" max="4.0" step="0.1" value="1.5">
+        </div>
+
+        <div class="slider-row">
+            <label>Distância da Luz (Raio X/Z):</label>
+            <input type="range" id="light-distance-slider" min="50" max="600" step="10" value="180">
+        </div>
+
+        <div class="slider-row">
+            <label>Altura da Luz (Y):</label>
+            <input type="range" id="light-height-slider" min="-50" max="500" step="10" value="200">
+        </div>
+
+        <button id="btn-move-light" style="background: #1976d2; color: #fff; font-size: 11px; margin-top: 4px;">💡 Mover Luz com o Mouse (Gizmo)</button>
     </div>
 </div>
 
@@ -431,7 +448,7 @@
 </div>
 
 <!-- Painel 4: Ferramentas de Gizmo -->
-<div class="floating-panel" id="panel-gizmo" style="top: 240px; left: 10px;">
+<div class="floating-panel" id="panel-gizmo" style="top: 320px; left: 10px;">
     <div class="panel-header">
         <span>🛠️ Ferramentas de Gizmo</span>
         <button class="minimize-btn" onclick="toggleMinimize('panel-gizmo')">_</button>
@@ -450,7 +467,7 @@
 </div>
 
 <!-- Painel 5: Osso / Objeto Selecionado -->
-<div class="floating-panel" id="bone-details" style="top: 240px; left: 290px; display: none;">
+<div class="floating-panel" id="bone-details" style="top: 320px; left: 290px; display: none;">
     <div class="panel-header">
         <span>🦴 Osso Selecionado</span>
         <button class="minimize-btn" onclick="toggleMinimize('bone-details')">_</button>
@@ -532,6 +549,56 @@
 </script>
 
 <script>
+const SETTINGS_KEY = 'model_animator_settings';
+
+function savePanelsState() {
+    const panelsData = {};
+    document.querySelectorAll('.floating-panel').forEach(panel => {
+        const body = panel.querySelector('.panel-body');
+        panelsData[panel.id] = {
+            left: panel.style.left,
+            top: panel.style.top,
+            minimized: body.style.display === 'none'
+        };
+    });
+    
+    let settings = {};
+    try {
+        settings = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
+    } catch(e) {}
+    
+    settings.panels = panelsData;
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function loadPanelsState() {
+    try {
+        const saved = localStorage.getItem(SETTINGS_KEY);
+        if (!saved) return;
+        const settings = JSON.parse(saved);
+        if (!settings.panels) return;
+
+        for (const [panelId, data] of Object.entries(settings.panels)) {
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                if (data.left) panel.style.left = data.left;
+                if (data.top) panel.style.top = data.top;
+                if (data.minimized !== undefined) {
+                    const body = panel.querySelector('.panel-body');
+                    // Mantém o painel de detalhes do osso fechado caso não haja osso selecionado
+                    if (panelId === 'bone-details' && panel.style.display === 'none') {
+                        // Respeita o estado dinâmico caso esteja oculto por padrão
+                    } else {
+                        body.style.display = data.minimized ? 'none' : 'flex';
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Erro ao carregar estado dos painéis:', e);
+    }
+}
+
 function toggleMinimize(panelId) {
     const panel = document.getElementById(panelId);
     const body = panel.querySelector('.panel-body');
@@ -540,6 +607,7 @@ function toggleMinimize(panelId) {
     } else {
         body.style.display = 'none';
     }
+    savePanelsState();
 }
 
 let activePanel = null;
@@ -573,8 +641,14 @@ document.addEventListener('mousemove', (e) => {
 });
 
 document.addEventListener('mouseup', () => {
-    activePanel = null;
+    if (activePanel) {
+        savePanelsState();
+        activePanel = null;
+    }
 });
+
+// Carrega as posições e estados dos painéis ao iniciar
+window.addEventListener('DOMContentLoaded', loadPanelsState);
 </script>
 
 <script type="module">
@@ -610,7 +684,6 @@ scene.add(groundGroup);
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 120), 0.1, 5000);
 camera.position.set(0, 100, 250);
 
-// ATENÇÃO: preserveDrawingBuffer ativado para permitir exportação via toDataURL()
 const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
 renderer.setSize(window.innerWidth, window.innerHeight - 120);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -763,6 +836,8 @@ function applyLightingPreset(preset) {
             dirLight.position.set(100, 200, 150);
             break;
     }
+
+    document.getElementById('light-intensity-slider').value = dirLight.intensity;
 }
 
 document.getElementById('ambient-light-select').addEventListener('change', (e) => {
@@ -770,22 +845,48 @@ document.getElementById('ambient-light-select').addEventListener('change', (e) =
     saveEnvironmentSettings();
 });
 
+document.getElementById('light-intensity-slider').addEventListener('input', (e) => {
+    dirLight.intensity = parseFloat(e.target.value);
+    saveEnvironmentSettings();
+});
+
+document.getElementById('light-distance-slider').addEventListener('input', (e) => {
+    const dist = parseFloat(e.target.value);
+    const currentHeight = dirLight.position.y;
+    const angle = Math.atan2(dirLight.position.z, dirLight.position.x);
+    dirLight.position.x = Math.cos(angle) * dist;
+    dirLight.position.z = Math.sin(angle) * dist;
+    dirLight.position.y = currentHeight;
+    saveEnvironmentSettings();
+});
+
+document.getElementById('light-height-slider').addEventListener('input', (e) => {
+    dirLight.position.y = parseFloat(e.target.value);
+    saveEnvironmentSettings();
+});
+
 const SETTINGS_KEY = 'model_animator_settings';
 const SESSION_PROJECT_KEY = 'model_animator_project_session';
 
 function saveEnvironmentSettings() {
-    const settings = {
-        theme: document.body.classList.contains('light-theme') ? 'light' : 'dark',
-        showSkeleton: document.getElementById('chk-skeleton').checked,
-        showPickers: document.getElementById('chk-pickers').checked,
-        showGround: document.getElementById('chk-ground').checked,
-        pickerRadius: document.getElementById('picker-radius-slider').value,
-        meshOpacity: document.getElementById('opacity-slider').value,
-        ambientPreset: document.getElementById('ambient-light-select').value,
-        renderMode: document.getElementById('render-mode-select').value,
-        cameraPos: [camera.position.x, camera.position.y, camera.position.z],
-        cameraTarget: [orbit.target.x, orbit.target.y, orbit.target.z]
-    };
+    let settings = {};
+    try {
+        settings = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
+    } catch(e) {}
+
+    settings.theme = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+    settings.showSkeleton = document.getElementById('chk-skeleton').checked;
+    settings.showPickers = document.getElementById('chk-pickers').checked;
+    settings.showGround = document.getElementById('chk-ground').checked;
+    settings.pickerRadius = document.getElementById('picker-radius-slider').value;
+    settings.meshOpacity = document.getElementById('opacity-slider').value;
+    settings.ambientPreset = document.getElementById('ambient-light-select').value;
+    settings.renderMode = document.getElementById('render-mode-select').value;
+    settings.lightIntensity = dirLight.intensity;
+    settings.lightPosition = [dirLight.position.x, dirLight.position.y, dirLight.position.z];
+    settings.cameraPos = [camera.position.x, camera.position.y, camera.position.z];
+    settings.cameraTarget = [orbit.target.x, orbit.target.y, orbit.target.z];
+
     localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
@@ -812,6 +913,15 @@ function loadEnvironmentSettings() {
         if (settings.ambientPreset !== undefined) {
             document.getElementById('ambient-light-select').value = settings.ambientPreset;
             applyLightingPreset(settings.ambientPreset);
+        }
+
+        if (settings.lightIntensity !== undefined) {
+            dirLight.intensity = settings.lightIntensity;
+            document.getElementById('light-intensity-slider').value = settings.lightIntensity;
+        }
+
+        if (settings.lightPosition) {
+            dirLight.position.set(...settings.lightPosition);
         }
 
         if (settings.renderMode !== undefined) {
@@ -884,7 +994,7 @@ function redo() {
 
     const nextStateObj = redoStack.pop();
     totalFrames = nextStateObj.totalFrames;
-    document.getElementById('total-frames-input').value = totalFrames;
+    document.getElementById('total-frames-input').value = nextStateObj.totalFrames;
     restoreState(nextStateObj.snapshot);
 }
 
@@ -919,6 +1029,7 @@ transformControls.setMode('translate');
 transformControls.addEventListener('dragging-changed', (event) => {
     orbit.enabled = !event.value;
     if (event.value) {
+        if (transformControls.object === dirLight) return; 
         pushState();
         prevPivotPosition.copy(pivotObject.position);
         prevPivotQuaternion.copy(pivotObject.quaternion);
@@ -939,6 +1050,11 @@ transformControls.addEventListener('dragging-changed', (event) => {
 });
 
 transformControls.addEventListener('change', () => {
+    if (transformControls.object === dirLight) {
+        saveEnvironmentSettings();
+        return;
+    }
+
     if (transformControls.dragging && selectedBones.length > 0) {
         const mode = transformControls.getMode();
 
@@ -1004,6 +1120,21 @@ transformControls.addEventListener('change', () => {
     }
 });
 scene.add(transformControls);
+
+let isMovingLight = false;
+document.getElementById('btn-move-light').addEventListener('click', () => {
+    isMovingLight = !isMovingLight;
+    const btn = document.getElementById('btn-move-light');
+    if (isMovingLight) {
+        transformControls.attach(dirLight);
+        btn.innerText = '✅ Parar de Mover Luz';
+        btn.style.background = '#2e7d32';
+    } else {
+        transformControls.detach();
+        btn.innerText = '💡 Mover Luz com o Mouse (Gizmo)';
+        btn.style.background = '#1976d2';
+    }
+});
 
 let characterGroup = null;
 let skeletonHelper = null;
@@ -1082,7 +1213,6 @@ let isPlaying = false;
 let playInterval = null;
 let targetFPS = 30;
 
-// Contador global incremental para nomeação automática dos arquivos PNG
 let pngExportCounter = 1;
 
 const raycaster = new THREE.Raycaster();
@@ -1439,7 +1569,7 @@ function clearCurrentModel() {
     originalMaterials.clear();
     undoStack.length = 0;
     redoStack.length = 0;
-    transformControls.detach();
+    if (!isMovingLight) transformControls.detach();
     selectedBones = [];
     mixer = null;
     activeAction = null;
@@ -1462,6 +1592,7 @@ function updateHelpers() {
 }
 
 function selectBone(bone, multiSelect = false) {
+    if (isMovingLight) return; 
     if (!multiSelect) {
         selectedBones = [bone];
     } else {
@@ -1476,6 +1607,7 @@ function selectBone(bone, multiSelect = false) {
     if (selectedBones.length === 0) {
         transformControls.detach();
         document.getElementById('bone-details').style.display = 'none';
+        savePanelsState();
         return;
     }
 
@@ -1493,6 +1625,7 @@ function selectBone(bone, multiSelect = false) {
 
     const boneDetails = document.getElementById('bone-details');
     boneDetails.style.display = 'flex';
+    savePanelsState();
 
     if (selectedBones.length === 1) {
         const singleBone = selectedBones[0];
@@ -1505,7 +1638,7 @@ function selectBone(bone, multiSelect = false) {
 }
 
 document.getElementById('btn-select-root').addEventListener('click', () => {
-    if (characterGroup) selectBone(characterGroup, false);
+    if (characterGroup && !isMovingLight) selectBone(characterGroup, false);
 });
 
 function updateUIInputs() {
@@ -1698,13 +1831,10 @@ document.getElementById('ctx-clear').addEventListener('click', () => {
     clearKeyframe(contextTargetFrame);
 });
 
-// Função auxiliar para disparar o download da imagem PNG capturada
 function downloadCanvasAsPNG(transparent = false) {
-    // Muda temporariamente para o frame alvo antes de exportar
     const previousFrame = currentFrame;
     selectFrame(contextTargetFrame);
 
-    // Oculta temporariamente elementos auxiliares (esqueleto, juntas, gizmo) para a foto sair limpa
     const oldSkeletonVisible = skeletonHelper ? skeletonHelper.visible : false;
     if (skeletonHelper) skeletonHelper.visible = false;
 
@@ -1714,7 +1844,6 @@ function downloadCanvasAsPNG(transparent = false) {
     const oldGizmoVisible = transformControls.visible;
     transformControls.visible = false;
 
-    // Se fundo transparente for solicitado, oculta temporariamente o ground/chão e limpa a cor de fundo da cena
     const oldGroundVisible = groundGroup.visible;
     const oldBg = scene.background;
     if (transparent) {
@@ -1723,13 +1852,9 @@ function downloadCanvasAsPNG(transparent = false) {
         renderer.setClearColor(0x000000, 0);
     }
 
-    // Força renderização atualizada
     renderer.render(scene, camera);
-
-    // Gera o Data URL do canvas
     const dataURL = renderer.domElement.toDataURL('image/png');
 
-    // Restaura o estado visual original
     if (skeletonHelper) skeletonHelper.visible = oldSkeletonVisible;
     bonePickers.forEach((p, idx) => p.visible = oldPickersVisibility[idx]);
     transformControls.visible = oldGizmoVisible;
@@ -1739,10 +1864,8 @@ function downloadCanvasAsPNG(transparent = false) {
         scene.background = oldBg;
     }
 
-    // Retorna para o frame original em que o usuário estava
     selectFrame(previousFrame);
 
-    // Dispara o download com numeração automática formatada com zeros à esquerda (ex: 001, 002...)
     const paddedNum = String(pngExportCounter++).padStart(3, '0');
     const filename = `frame_${paddedNum}.png`;
 
@@ -2092,6 +2215,7 @@ document.getElementById('opacity-slider').addEventListener('input', (e) => {
 });
 
 window.addEventListener('pointerdown', (event) => {
+    if (isMovingLight) return;
     if (event.clientY > window.innerHeight - 120 || ['INPUT', 'BUTTON', 'LABEL', 'SELECT', 'SUMMARY', 'DETAILS'].includes(event.target.tagName)) return;
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / (window.innerHeight - 120)) * 2 + 1;
