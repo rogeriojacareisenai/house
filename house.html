@@ -401,6 +401,7 @@
         let measuringStart = null;
         let measuringEnd = null;
         let draggingWallHandle = null;
+        let draggingOpening = null;
 
         let scene3D, camera3D, renderer3D, controls3D;
         let sunLight, ambientLight, fillLight1, fillLight2, directionalLight3D;
@@ -692,6 +693,14 @@
             }
 
             if (currentTool === 'select') {
+                const hit = hitTest2D(world.x, world.y);
+                if (hit && (hit.type === 'door' || hit.type === 'window')) {
+                    selectedItem = hit;
+                    draggingOpening = hit;
+                    updatePropertiesPanel();
+                    return;
+                }
+
                 if (selectedItem && selectedItem.type === 'wall') {
                     const w = project.walls.find(item => item.id === selectedItem.id);
                     if (w) {
@@ -707,7 +716,7 @@
                         }
                     }
                 }
-                selectedItem = hitTest2D(world.x, world.y);
+                selectedItem = hit;
                 updatePropertiesPanel();
             } else if (currentTool === 'wall') {
                 const pt = getSnappedPoint(world.x, world.y);
@@ -752,6 +761,23 @@
                 return;
             }
 
+            if (draggingOpening) {
+                let item = null;
+                if (draggingOpening.type === 'door') {
+                    item = project.doors.find(d => d.id === draggingOpening.id);
+                } else if (draggingOpening.type === 'window') {
+                    item = project.windows.find(w => w.id === draggingOpening.id);
+                }
+                if (item) {
+                    const wall = project.walls.find(w => w.id === item.wallId);
+                    if (wall) {
+                        item.offset = getWallOffset(wall, world.x, world.y);
+                        saveAndSync();
+                    }
+                }
+                return;
+            }
+
             if (draggingWallHandle) {
                 const w = project.walls.find(item => item.id === draggingWallHandle.wallId);
                 if (w) {
@@ -769,6 +795,11 @@
 
         function onMouseUp2D(e) {
             if (isDraggingCanvas) { isDraggingCanvas = false; return; }
+            if (draggingOpening) {
+                draggingOpening = null;
+                showToast('Posição alterada com sucesso!');
+                return;
+            }
             if (draggingWallHandle) {
                 draggingWallHandle = null;
                 showToast('Área de divisão ajustada com sucesso!');
@@ -1196,6 +1227,68 @@
             requestAnimationFrame(render2DLoop);
         }
 
+        function drawDimensionLine(p1, p2, valCm, offsetDist = 20) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const len = Math.hypot(dx, dy);
+            if (len === 0) return;
+
+            const nx = -dy / len;
+            const ny = dx / len;
+
+            const startX = p1.x + nx * offsetDist;
+            const startY = p1.y + ny * offsetDist;
+            const endX = p2.x + nx * offsetDist;
+            const endY = p2.y + ny * offsetDist;
+
+            ctx2D.save();
+            ctx2D.strokeStyle = '#4f46e5';
+            ctx2D.fillStyle = '#4f46e5';
+            ctx2D.lineWidth = 1.5;
+            ctx2D.setLineDash([3, 3]);
+
+            // Linhas de chamada
+            ctx2D.beginPath();
+            ctx2D.moveTo(p1.x, p1.y);
+            ctx2D.lineTo(startX, startY);
+            ctx2D.moveTo(p2.x, p2.y);
+            ctx2D.lineTo(endX, endY);
+            ctx2D.stroke();
+
+            // Linha principal de cota
+            ctx2D.setLineDash([]);
+            ctx2D.beginPath();
+            ctx2D.moveTo(startX, startY);
+            ctx2D.lineTo(endX, endY);
+            ctx2D.stroke();
+
+            // Delimitadores nas extremidades
+            const tick = 5;
+            ctx2D.beginPath();
+            ctx2D.moveTo(startX - nx * tick - ny * tick, startY - ny * tick + nx * tick);
+            ctx2D.lineTo(startX + nx * tick + ny * tick, startY + ny * tick - nx * tick);
+            ctx2D.moveTo(endX - nx * tick - ny * tick, endY - ny * tick + nx * tick);
+            ctx2D.lineTo(endX + nx * tick + ny * tick, endY + ny * tick - nx * tick);
+            ctx2D.stroke();
+
+            // Texto da medida
+            const midX = (startX + endX) / 2;
+            const midY = (startY + endY) / 2;
+            const text = formatUnit(valCm);
+
+            ctx2D.font = 'bold 11px Inter';
+            ctx2D.textAlign = 'center';
+            ctx2D.textBaseline = 'middle';
+
+            const textWidth = ctx2D.measureText(text).width;
+            ctx2D.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx2D.fillRect(midX - textWidth / 2 - 4, midY - 7, textWidth + 8, 14);
+
+            ctx2D.fillStyle = '#4f46e5';
+            ctx2D.fillText(text, midX, midY);
+            ctx2D.restore();
+        }
+
         function draw2D() {
             ctx2D.clearRect(0, 0, canvas2D.width, canvas2D.height);
 
@@ -1236,6 +1329,10 @@
                     [p1, p2].forEach(pt => {
                         ctx2D.beginPath(); ctx2D.arc(pt.x, pt.y, 8, 0, Math.PI * 2); ctx2D.fill(); ctx2D.stroke();
                     });
+
+                    // Desenhar cota da parede selecionada
+                    const wallLen = Math.hypot(w.x2 - w.x1, w.y2 - w.y1);
+                    drawDimensionLine(p1, p2, wallLen, (w.thickness || 20) * (scale2D * 0.5) / 2 + 18);
                 }
                 ctx2D.restore();
             }
@@ -1259,6 +1356,15 @@
                 ctx2D.strokeStyle = selectedItem && selectedItem.id === d.id ? '#ffffff' : 'transparent';
                 ctx2D.lineWidth = 2;
                 ctx2D.beginPath(); ctx2D.arc(pt.x, pt.y, selectedItem && selectedItem.id === d.id ? 10 : 8, 0, Math.PI * 2); ctx2D.fill(); ctx2D.stroke();
+
+                if (selectedItem && selectedItem.id === d.id) {
+                    const doorW = d.width || 90;
+                    const wallAngle = Math.atan2(w.y2 - w.y1, w.x2 - w.x1);
+                    const halfW = (doorW / 2) * (scale2D * 0.5);
+                    const p1 = { x: pt.x - Math.cos(wallAngle) * halfW, y: pt.y - Math.sin(wallAngle) * halfW };
+                    const p2 = { x: pt.x + Math.cos(wallAngle) * halfW, y: pt.y + Math.sin(wallAngle) * halfW };
+                    drawDimensionLine(p1, p2, doorW, 16);
+                }
                 ctx2D.restore();
             }
 
@@ -1282,6 +1388,15 @@
                 ctx2D.lineWidth = 2;
                 ctx2D.fillRect(pt.x - 7, pt.y - 7, 14, 14);
                 ctx2D.strokeRect(pt.x - 7, pt.y - 7, 14, 14);
+
+                if (selectedItem && selectedItem.id === win.id) {
+                    const winW = win.width || 120;
+                    const wallAngle = Math.atan2(w.y2 - w.y1, w.x2 - w.x1);
+                    const halfW = (winW / 2) * (scale2D * 0.5);
+                    const p1 = { x: pt.x - Math.cos(wallAngle) * halfW, y: pt.y - Math.sin(wallAngle) * halfW };
+                    const p2 = { x: pt.x + Math.cos(wallAngle) * halfW, y: pt.y + Math.sin(wallAngle) * halfW };
+                    drawDimensionLine(p1, p2, winW, 16);
+                }
                 ctx2D.restore();
             }
 
@@ -1815,11 +1930,20 @@
             }
         }
 
+        function openModal(id) {
+            document.getElementById(id).classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
         function exportJSON() {
-            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project, null, 2));
-            const dl = document.createElement('a'); dl.setAttribute("href", dataStr);
-            dl.setAttribute("download", `${project.name.toLowerCase().replace(/\s+/g, '_')}.json`);
-            dl.click(); showToast('JSON exportado!');
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", `${project.name.toLowerCase().replace(/\s+/g, '_')}.json`);
+            dlAnchorElem.click();
         }
 
         function importJSON(event) {
@@ -1829,36 +1953,37 @@
             reader.onload = function(e) {
                 try {
                     project = JSON.parse(e.target.result);
-                    ['walls', 'doors', 'windows', 'furniture'].forEach(key => {
-                        if (project[key]) {
-                            project[key].forEach(item => { if (!item.floor) item.floor = 'baixo'; });
-                        }
-                    });
                     normalizeProjectAppearance();
-                    document.getElementById('project-name-input').value = project.name;
-                    document.getElementById('project-title-display').innerText = project.name;
-                    saveAndSync(); showToast('Projeto de sobrado importado!');
-                } catch (err) { showToast('Erro ao ler arquivo.', 'error'); }
+                    saveAndSync();
+                    updatePropertiesPanel();
+                    closeModal('project-modal');
+                    showToast('Projeto carregado com sucesso!');
+                } catch (err) {
+                    showToast('Erro ao importar arquivo JSON.', 'error');
+                }
             };
             reader.readAsText(file);
         }
 
         function exportSnapshot() {
-            if (viewMode === '3d' || (viewMode === 'split' && is3DInitialized)) {
+            let dataURL = '';
+            if (viewMode === '2d') {
+                dataURL = canvas2D.toDataURL('image/png');
+            } else if (viewMode === '3d' && renderer3D) {
                 renderer3D.render(scene3D, camera3D);
-                const dl = document.createElement('a');
-                dl.href = renderer3D.domElement.toDataURL('image/png');
-                dl.download = `${project.name}_3d.png`; dl.click();
-            } else {
-                const dl = document.createElement('a');
-                dl.href = canvas2D.toDataURL('image/png');
-                dl.download = `${project.name}_2d.png`; dl.click();
+                dataURL = renderer3D.domElement.toDataURL('image/png');
+            } else if (viewMode === 'split') {
+                dataURL = canvas2D.toDataURL('image/png');
             }
-            showToast('Imagem exportada!');
-        }
 
-        function openModal(id) { document.getElementById(id).classList.add('flex'); document.getElementById(id).classList.remove('hidden'); }
-        function closeModal(id) { document.getElementById(id).classList.remove('flex'); document.getElementById(id).classList.add('hidden'); }
+            if (dataURL) {
+                const link = document.createElement('a');
+                link.download = `${project.name.toLowerCase().replace(/\s+/g, '_')}_snapshot.png`;
+                link.href = dataURL;
+                link.click();
+                showToast('Imagem exportada com sucesso!');
+            }
+        }
     </script>
 </body>
 </html>
