@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animação FBX estilo Flash Timeline</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --panel-bg: rgba(0, 0, 0, 0.85);
+            --text-color: #ffffff;
+            --border-color: #444;
+            --timeline-bg: #2b2b2b;
+            --timeline-controls-bg: #333;
+            --timeline-ruler-bg: #2a2a2a;
+            --timeline-track-bg: #222;
+            --frame-cell-bg: #2c2c2c;
+            --keyframe-bg: #c0c0c0;
+            --keyframe-dot: #000000;
+            --input-bg: #222;
+        }
+
+        body.light-theme {
+            --bg-color: #e0e0e0;
+            --panel-bg: rgba(255, 255, 255, 0.9);
+            --text-color: #111111;
+            --border-color: #ccc;
+            --timeline-bg: #f0f0f0;
+            --timeline-controls-bg: #e0e0e0;
+            --timeline-ruler-bg: #e5e5e5;
+            --timeline-track-bg: #ffffff;
+            --frame-cell-bg: #f5f5f5;
+            --keyframe-bg: #a0a0a0;
+            --keyframe-dot: #111111;
+            --input-bg: #ffffff;
+        }
+
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); user-select: none; transition: background-color 0.3s; }
+        
+        /* PAINEL LATERAL DE CONTROLES */
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: var(--panel-bg);
+            color: var(--text-color);
+            padding: 12px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+            width: 280px;
+            max-height: 55vh;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+        }
+        button, input { cursor: pointer; padding: 4px; }
+        .active { background: #4CAF50; color: white; border: none; }
+        .btn-group { display: flex; gap: 4px; }
+        .btn-group button { flex: 1; font-size: 11px; }
+        .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+        .section-title { font-size: 11px; font-weight: bold; color: #4CAF50; text-transform: uppercase; }
+        .slider-row { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+
+        /* PAINEL DO OSSO */
+        #bone-panel {
+            background: rgba(125, 125, 125, 0.1);
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .coord-group { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+        .coord-field { display: flex; flex-direction: column; align-items: center; flex: 1; }
+        .coord-field label { font-size: 9px; opacity: 0.8; }
+        .coord-field input { width: 100%; text-align: center; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 3px; font-size: 10px; }
+
+        /* TIMELINE ESTILO FLASH */
+        #flash-timeline-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 120px;
+            background: var(--timeline-bg);
+            border-top: 2px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.3);
+        }
+        
+        .timeline-controls {
+            height: 32px;
+            background: var(--timeline-controls-bg);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .timeline-controls button {
+            background: #444;
+            color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            font-size: 11px;
+            padding: 3px 8px;
+        }
+
+        .timeline-controls button:hover { opacity: 0.8; }
+
+        .timeline-field {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            border-left: 1px solid var(--border-color);
+            padding-left: 8px;
+            margin-left: 2px;
+        }
+
+        .timeline-field input {
+            width: 38px;
+            text-align: center;
+            background: var(--input-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+        }
+
+        .timeline-scroll-area {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            position: relative;
+            background: var(--timeline-track-bg);
+            cursor: pointer;
+        }
+
+        /* RÉGUA DE FRAMES */
+        .timeline-ruler {
+            height: 20px;
+            background: var(--timeline-ruler-bg);
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .ruler-mark {
+            width: 20px;
+            min-width: 20px;
+            height: 100%;
+            border-right: 1px solid var(--border-color);
+            font-size: 9px;
+            opacity: 0.7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            pointer-events: none;
+        }
+
+        /* TRILHA DE FRAMES */
+        .timeline-track {
+            height: 35px;
+            display: flex;
+            background: var(--timeline-track-bg);
+            position: relative;
+        }
+
+        .frame-cell {
+            width: 20px;
+            min-width: 20px;
+            height: 100%;
+            border-right: 1px solid var(--border-color);
+            box-sizing: border-box;
+            position: relative;
+            background: var(--frame-cell-bg);
+            pointer-events: none;
+        }
+
+        .frame-cell.has-keyframe {
+            background: var(--keyframe-bg);
+        }
+
+        .frame-cell.has-keyframe::after {
+            content: '';
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--keyframe-dot);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .frame-cell.active-frame {
+            border-left: 2px solid #ff3333;
+            border-right: 2px solid #ff3333;
+        }
+
+        .frame-cell.active-frame::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -1px;
+            width: 100%;
+            height: 20px;
+            background: rgba(255, 51, 51, 0.4);
+            border-top: 2px solid #ff3333;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+<!-- PAINEL LATERAL -->
+<div id="ui">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <label style="font-size: 11px;"><strong>1. Carregar FBX:</strong></label>
+        <button id="btn-theme-toggle" style="font-size: 10px; padding: 2px 6px;">🌓 Tema Light/Dark</button>
+    </div>
+    <input type="file" id="file-input" accept=".fbx" style="font-size: 11px;">
+    
+    <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
+
+    <div class="checkbox-row">
+        <input type="checkbox" id="chk-skeleton" checked>
+        <label for="chk-skeleton">Exibir Esqueleto</label>
+    </div>
+
+    <div class="checkbox-row">
+        <input type="checkbox" id="chk-pickers" checked>
+        <label for="chk-pickers">Exibir Juntas Interativas</label>
+    </div>
+
+    <div class="slider-row">
+        <label>Tamanho das Juntas:</label>
+        <input type="range" id="picker-radius-slider" min="0.5" max="6.0" step="0.2" value="1.8">
+    </div>
+
+    <div class="slider-row">
+        <label>Opacidade da Malha:</label>
+        <input type="range" id="opacity-slider" min="0.0" max="1.0" step="0.05" value="0.5">
+    </div>
+
+    <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
+
+    <label style="font-size: 11px;"><strong>Modo de Gizmo:</strong></label>
+    <div class="btn-group">
+        <button id="btn-mode-translate" class="active">Mover</button>
+        <button id="btn-mode-rotate">Rotacionar</button>
+        <button id="btn-mode-scale">Escalonar</button>
+    </div>
+
+    <!-- CONTROLE INDIVIDUAL DO OSSO -->
+    <div id="bone-panel" style="display: none;">
+        <span class="section-title" id="selected-bone-name">Osso Selecionado</span>
+        
+        <div style="font-size: 10px; font-weight: bold;">Posição:</div>
+        <div class="coord-group">
+            <div class="coord-field"><label>X</label><input type="number" id="pos-x" step="0.1"></div>
+            <div class="coord-field"><label>Y</label><input type="number" id="pos-y" step="0.1"></div>
+            <div class="coord-field"><label>Z</label><input type="number" id="pos-z" step="0.1"></div>
+        </div>
+
+        <div style="font-size: 10px; font-weight: bold;">Rotação (°):</div>
+        <div class="coord-group">
+            <div class="coord-field"><label>X</label><input type="number" id="rot-x" step="1"></div>
+            <div class="coord-field"><label>Y</label><input type="number" id="rot-y" step="1"></div>
+            <div class="coord-field"><label>Z</label><input type="number" id="rot-z" step="1"></div>
+        </div>
+    </div>
+</div>
+
+<!-- TIMELINE FLASH -->
+<div id="flash-timeline-container">
+    <div class="timeline-controls">
+        <button id="btn-play">► Play</button>
+        <button id="btn-add-keyframe" style="background: #2e7d32;">F6 - Keyframe</button>
+        <button id="btn-clear-keyframe" style="background: #c62828;">F7 - Limpar</button>
+        <button id="btn-undo" title="Desfazer (Ctrl+Z)">↩ Redo/Undo</button>
+        
+        <div class="timeline-field">
+            <label for="fps-input">FPS:</label>
+            <input type="number" id="fps-input" value="12" min="1" max="60">
+        </div>
+
+        <div class="timeline-field">
+            <label for="total-frames-input">Fim:</label>
+            <input type="number" id="total-frames-input" value="60" min="2" max="500">
+        </div>
+
+        <div style="display: flex; gap: 4px; border-left: 1px solid var(--border-color); padding-left: 8px;">
+            <button id="btn-save-anim" style="background: #0277bd;">💾 Gravar</button>
+            <button id="btn-load-anim" style="background: #ef6c00;">📂 Carregar</button>
+            <input type="file" id="anim-file-input" accept=".json" style="display: none;">
+        </div>
+
+        <span style="font-size: 11px; margin-left: auto;">
+            Frame: <strong id="current-frame-text" style="color: #4CAF50;">1</strong> / <span id="total-frames-text">60</span>
+        </span>
+    </div>
+
+    <div class="timeline-scroll-area" id="timeline-scroll">
+        <div class="timeline-ruler" id="timeline-ruler"></div>
+        <div class="timeline-track" id="timeline-track"></div>
+    </div>
+</div>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { TransformControls } from 'three/addons/controls/TransformControls.js';
+
+// --- CONFIGURAÇÃO DA CENA ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a1a);
+
+let gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+scene.add(gridHelper);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 120), 0.1, 1000);
+camera.position.set(0, 100, 250);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight - 120);
+document.body.appendChild(renderer.domElement);
+
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.target.set(0, 90, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+dirLight.position.set(100, 200, 150);
+scene.add(dirLight);
+
+// --- HISTÓRICO (UNDO / REDO) ---
+const undoStack = [];
+const redoStack = [];
+const MAX_HISTORY = 30;
+
+function pushState() {
+    const snapshot = new Map();
+    keyframesMap.forEach((pose, frameIdx) => {
+        const poseCopy = pose.map(p => ({
+            position: p.position.clone(),
+            quaternion: p.quaternion.clone(),
+            scale: p.scale.clone()
+        }));
+        snapshot.set(frameIdx, poseCopy);
+    });
+    undoStack.push(snapshot);
+    if (undoStack.length > MAX_HISTORY) undoStack.shift();
+    redoStack.length = 0; // Limpa o redo quando uma nova ação ocorre
+}
+
+function undo() {
+    if (undoStack.length === 0) return;
+
+    // Salva o estado atual no redoStack
+    const currentSnapshot = new Map();
+    keyframesMap.forEach((pose, frameIdx) => {
+        const poseCopy = pose.map(p => ({
+            position: p.position.clone(),
+            quaternion: p.quaternion.clone(),
+            scale: p.scale.clone()
+        }));
+        currentSnapshot.set(frameIdx, poseCopy);
+    });
+    redoStack.push(currentSnapshot);
+
+    // Recupera o último estado
+    const previousState = undoStack.pop();
+    restoreState(previousState);
+}
+
+function redo() {
+    if (redoStack.length === 0) return;
+
+    // Salva o estado atual no undoStack
+    const currentSnapshot = new Map();
+    keyframesMap.forEach((pose, frameIdx) => {
+        const poseCopy = pose.map(p => ({
+            position: p.position.clone(),
+            quaternion: p.quaternion.clone(),
+            scale: p.scale.clone()
+        }));
+        currentSnapshot.set(frameIdx, poseCopy);
+    });
+    undoStack.push(currentSnapshot);
+
+    // Recupera o estado do redo
+    const nextState = redoStack.pop();
+    restoreState(nextState);
+}
+
+function restoreState(snapshotMap) {
+    keyframesMap.clear();
+    snapshotMap.forEach((pose, frameIdx) => {
+        const poseCopy = pose.map(p => ({
+            position: p.position.clone(),
+            quaternion: p.quaternion.clone(),
+            scale: p.scale.clone()
+        }));
+        keyframesMap.set(frameIdx, poseCopy);
+    });
+    updateTimelineGrid();
+    applyPoseForFrame(currentFrame);
+}
+
+// --- TRANSFORM CONTROLS ---
+const transformControls = new TransformControls(camera, renderer.domElement);
+transformControls.setMode('translate');
+transformControls.addEventListener('dragging-changed', (event) => {
+    orbit.enabled = !event.value;
+    if (event.value) {
+        pushState(); // Salva o estado quando começa a arrastar
+    }
+});
+
+transformControls.addEventListener('change', () => {
+    updateUIInputs();
+    if (transformControls.dragging) {
+        saveKeyframe(currentFrame, false, false);
+    }
+});
+scene.add(transformControls);
+
+// --- ESTADO DA APLICAÇÃO ---
+let characterGroup = null;
+let skeletonHelper = null;
+let bonePickers = [];
+let selectedBone = null;
+let boneMap = new Map();
+let allBones = [];
+
+let fbxFileName = "";
+let totalFrames = 60;
+let currentFrame = 0;
+let keyframesMap = new Map();
+let isPlaying = false;
+let playInterval = null;
+let targetFPS = 12;
+
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
+// --- CARREGADOR FBX ---
+document.getElementById('file-input').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    fbxFileName = file.name;
+
+    const reader = new FileReader();
+    reader.readAsArrayBuffer(file);
+    reader.onload = (e) => {
+        const loader = new FBXLoader();
+        const fbx = loader.parse(e.target.result, '');
+
+        clearCurrentModel();
+
+        characterGroup = fbx;
+        scene.add(characterGroup);
+        characterGroup.scale.setScalar(1);
+
+        skeletonHelper = new THREE.SkeletonHelper(characterGroup);
+        skeletonHelper.material.linewidth = 2;
+        scene.add(skeletonHelper);
+
+        const radius = parseFloat(document.getElementById('picker-radius-slider').value);
+
+        characterGroup.traverse((child) => {
+            if (child.isMesh) {
+                child.material.side = THREE.DoubleSide;
+                child.material.transparent = true;
+                child.material.opacity = parseFloat(document.getElementById('opacity-slider').value);
+            }
+
+            if (child.isBone) {
+                child.matrixAutoUpdate = true;
+                allBones.push(child);
+
+                const pickerGeo = new THREE.SphereGeometry(radius, 16, 16);
+                const pickerMat = new THREE.MeshBasicMaterial({ color: 0xffcc00, depthTest: false, transparent: true, opacity: 0.8 });
+                const picker = new THREE.Mesh(pickerGeo, pickerMat);
+                picker.renderOrder = 999;
+                
+                scene.add(picker);
+                bonePickers.push(picker);
+                boneMap.set(picker, child);
+            }
+        });
+
+        saveKeyframe(0, true, false);
+        buildFlashTimelineUI();
+        selectFrame(0);
+        updateVisibility();
+    };
+});
+
+function clearCurrentModel() {
+    stopAnimation();
+    if (characterGroup) scene.remove(characterGroup);
+    if (skeletonHelper) scene.remove(skeletonHelper);
+    bonePickers.forEach(p => scene.remove(p));
+    bonePickers = [];
+    boneMap.clear();
+    allBones = [];
+    keyframesMap.clear();
+    undoStack.length = 0;
+    redoStack.length = 0;
+    transformControls.detach();
+    selectedBone = null;
+    document.getElementById('bone-panel').style.display = 'none';
+}
+
+function updateHelpers() {
+    bonePickers.forEach(picker => {
+        const bone = boneMap.get(picker);
+        if (bone) {
+            bone.getWorldPosition(picker.position);
+            picker.material.color.setHex(bone === selectedBone ? 0x00ff00 : 0xffcc00);
+        }
+    });
+}
+
+function selectBone(bone) {
+    selectedBone = bone;
+    transformControls.attach(bone);
+    document.getElementById('bone-panel').style.display = 'flex';
+    document.getElementById('selected-bone-name').innerText = bone.name || 'Osso Selecionado';
+    updateUIInputs();
+}
+
+function updateUIInputs() {
+    if (!selectedBone) return;
+    document.getElementById('pos-x').value = selectedBone.position.x.toFixed(2);
+    document.getElementById('pos-y').value = selectedBone.position.y.toFixed(2);
+    document.getElementById('pos-z').value = selectedBone.position.z.toFixed(2);
+    document.getElementById('rot-x').value = THREE.MathUtils.radToDeg(selectedBone.rotation.x).toFixed(0);
+    document.getElementById('rot-y').value = THREE.MathUtils.radToDeg(selectedBone.rotation.y).toFixed(0);
+    document.getElementById('rot-z').value = THREE.MathUtils.radToDeg(selectedBone.rotation.z).toFixed(0);
+}
+
+// ATUALIZAÇÃO VIA DIGITAÇÃO
+['pos-x', 'pos-y', 'pos-z'].forEach((id, index) => {
+    const inputEl = document.getElementById(id);
+    inputEl.addEventListener('focus', () => pushState());
+    inputEl.addEventListener('input', (e) => {
+        if (!selectedBone) return;
+        selectedBone.position[['x', 'y', 'z'][index]] = parseFloat(e.target.value) || 0;
+        saveKeyframe(currentFrame, false, false);
+    });
+});
+
+['rot-x', 'rot-y', 'rot-z'].forEach((id, index) => {
+    const inputEl = document.getElementById(id);
+    inputEl.addEventListener('focus', () => pushState());
+    inputEl.addEventListener('input', (e) => {
+        if (!selectedBone) return;
+        selectedBone.rotation[['x', 'y', 'z'][index]] = THREE.MathUtils.degToRad(parseFloat(e.target.value) || 0);
+        saveKeyframe(currentFrame, false, false);
+    });
+});
+
+// --- TIMELINE E KEYFRAMES ---
+function buildFlashTimelineUI() {
+    const rulerContainer = document.getElementById('timeline-ruler');
+    const trackContainer = document.getElementById('timeline-track');
+    
+    rulerContainer.innerHTML = '';
+    trackContainer.innerHTML = '';
+
+    for (let i = 0; i < totalFrames; i++) {
+        const mark = document.createElement('div');
+        mark.className = 'ruler-mark';
+        if ((i + 1) % 5 === 0 || i === 0) mark.innerText = i + 1;
+        rulerContainer.appendChild(mark);
+
+        const cell = document.createElement('div');
+        cell.className = 'frame-cell';
+        cell.dataset.frame = i;
+        trackContainer.appendChild(cell);
+    }
+    document.getElementById('total-frames-text').innerText = totalFrames;
+    updateTimelineGrid();
+}
+
+function saveKeyframe(frameIdx, updateUI = true, recordHistory = true) {
+    if (allBones.length === 0) return;
+    if (recordHistory) pushState();
+
+    const poseSnapshot = allBones.map(bone => ({
+        position: bone.position.clone(),
+        quaternion: bone.quaternion.clone(),
+        scale: bone.scale.clone()
+    }));
+    keyframesMap.set(frameIdx, poseSnapshot);
+    if (updateUI) updateTimelineGrid();
+}
+
+function clearKeyframe(frameIdx) {
+    pushState();
+    keyframesMap.delete(frameIdx);
+    updateTimelineGrid();
+    applyPoseForFrame(currentFrame);
+}
+
+function selectFrame(frameIdx) {
+    currentFrame = Math.max(0, Math.min(totalFrames - 1, frameIdx));
+    document.getElementById('current-frame-text').innerText = currentFrame + 1;
+    applyPoseForFrame(currentFrame);
+    updateTimelineGrid();
+}
+
+function applyPoseForFrame(frameIdx) {
+    if (allBones.length === 0 || keyframesMap.size === 0) return;
+
+    if (keyframesMap.has(frameIdx)) {
+        const pose = keyframesMap.get(frameIdx);
+        allBones.forEach((bone, idx) => {
+            bone.position.copy(pose[idx].position);
+            bone.quaternion.copy(pose[idx].quaternion);
+            bone.scale.copy(pose[idx].scale);
+        });
+        updateUIInputs();
+        return;
+    }
+
+    const sortedFrames = Array.from(keyframesMap.keys()).sort((a, b) => a - b);
+    let prevFrame = -1;
+    let nextFrame = -1;
+
+    for (let f of sortedFrames) {
+        if (f < frameIdx) prevFrame = f;
+        if (f > frameIdx && nextFrame === -1) nextFrame = f;
+    }
+
+    if (prevFrame !== -1 && nextFrame !== -1) {
+        const factor = (frameIdx - prevFrame) / (nextFrame - prevFrame);
+        const prevPose = keyframesMap.get(prevFrame);
+        const nextPose = keyframesMap.get(nextFrame);
+
+        allBones.forEach((bone, idx) => {
+            bone.position.lerpVectors(prevPose[idx].position, nextPose[idx].position, factor);
+            bone.quaternion.slerpQuaternions(prevPose[idx].quaternion, nextPose[idx].quaternion, factor);
+            bone.scale.lerpVectors(prevPose[idx].scale, nextPose[idx].scale, factor);
+        });
+    } else if (prevFrame !== -1) {
+        const prevPose = keyframesMap.get(prevFrame);
+        allBones.forEach((bone, idx) => {
+            bone.position.copy(prevPose[idx].position);
+            bone.quaternion.copy(prevPose[idx].quaternion);
+            bone.scale.copy(prevPose[idx].scale);
+        });
+    }
+    updateUIInputs();
+}
+
+function updateTimelineGrid() {
+    const cells = document.querySelectorAll('.frame-cell');
+    cells.forEach((cell, idx) => {
+        cell.classList.toggle('active-frame', idx === currentFrame);
+        cell.classList.toggle('has-keyframe', keyframesMap.has(idx));
+    });
+}
+
+// --- SCRUBBING / ARRASTAR COM O MOUSE NA TIMELINE ---
+const scrollArea = document.getElementById('timeline-scroll');
+let isScrubbing = false;
+
+function handleTimelineScrub(e) {
+    const rect = scrollArea.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left + scrollArea.scrollLeft;
+    const frameIndex = Math.floor(offsetX / 20); // Cada frame possui 20px de largura
+    if (frameIndex >= 0 && frameIndex < totalFrames && frameIndex !== currentFrame) {
+        selectFrame(frameIndex);
+    }
+}
+
+scrollArea.addEventListener('mousedown', (e) => {
+    isScrubbing = true;
+    handleTimelineScrub(e);
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (isScrubbing) {
+        handleTimelineScrub(e);
+    }
+});
+
+window.addEventListener('mouseup', () => {
+    isScrubbing = false;
+});
+
+// --- DEFINIÇÃO DO FRAME FINAL E FPS ---
+document.getElementById('total-frames-input').addEventListener('change', (e) => {
+    let val = parseInt(e.target.value) || 60;
+    val = Math.max(2, Math.min(500, val));
+    e.target.value = val;
+    totalFrames = val;
+    buildFlashTimelineUI();
+    if (currentFrame >= totalFrames) {
+        selectFrame(totalFrames - 1);
+    }
+});
+
+document.getElementById('fps-input').addEventListener('change', (e) => {
+    let val = parseInt(e.target.value) || 12;
+    val = Math.max(1, Math.min(60, val));
+    e.target.value = val;
+    targetFPS = val;
+    
+    if (isPlaying) {
+        stopAnimation();
+        startAnimation();
+    }
+});
+
+function togglePlay() {
+    if (isPlaying) stopAnimation();
+    else startAnimation();
+}
+
+function startAnimation() {
+    isPlaying = true;
+    document.getElementById('btn-play').innerText = '❚❚ Pause';
+    playInterval = setInterval(() => {
+        currentFrame = (currentFrame + 1) % totalFrames;
+        selectFrame(currentFrame);
+    }, 1000 / targetFPS);
+}
+
+function stopAnimation() {
+    isPlaying = false;
+    document.getElementById('btn-play').innerText = '► Play';
+    if (playInterval) clearInterval(playInterval);
+}
+
+document.getElementById('btn-play').addEventListener('click', togglePlay);
+document.getElementById('btn-add-keyframe').addEventListener('click', () => saveKeyframe(currentFrame, true));
+document.getElementById('btn-clear-keyframe').addEventListener('click', () => clearKeyframe(currentFrame));
+
+// --- EXPORTAR E IMPORTAR ANIMAÇÃO (JSON) COM NOME DO FBX ---
+document.getElementById('btn-save-anim').addEventListener('click', () => {
+    if (keyframesMap.size === 0) {
+        alert('Nenhum keyframe salvo para gravar.');
+        return;
+    }
+
+    const exportData = {
+        fbxFileName: fbxFileName || 'modelo_desconhecido.fbx',
+        fps: targetFPS,
+        totalFrames: totalFrames,
+        bonesOrder: allBones.map(b => b.name),
+        keyframes: []
+    };
+
+    keyframesMap.forEach((pose, frameIdx) => {
+        exportData.keyframes.push({
+            frame: frameIdx,
+            pose: pose.map(p => ({
+                pos: [p.position.x, p.position.y, p.position.z],
+                rot: [p.quaternion.x, p.quaternion.y, p.quaternion.z, p.quaternion.w],
+                scl: [p.scale.x, p.scale.y, p.scale.z]
+            }))
+        });
+    });
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (fbxFileName ? fbxFileName.replace('.fbx', '') : 'animacao') + '_export.json';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+document.getElementById('btn-load-anim').addEventListener('click', () => {
+    if (allBones.length === 0) {
+        alert('Carregue um arquivo FBX antes de importar a animação.');
+        return;
+    }
+    document.getElementById('anim-file-input').click();
+});
+
+document.getElementById('anim-file-input').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        try {
+            const data = JSON.parse(event.target.result);
+            if (!data.keyframes) throw new Error('Formato inválido');
+
+            pushState();
+            keyframesMap.clear();
+
+            if (data.fps) {
+                targetFPS = data.fps;
+                document.getElementById('fps-input').value = targetFPS;
+            }
+
+            if (data.totalFrames) {
+                totalFrames = data.totalFrames;
+                document.getElementById('total-frames-input').value = totalFrames;
+            }
+
+            data.keyframes.forEach(kf => {
+                const poseSnapshot = kf.pose.map(p => ({
+                    position: new THREE.Vector3(...p.pos),
+                    quaternion: new THREE.Quaternion(...p.rot),
+                    scale: new THREE.Vector3(...p.scl)
+                }));
+                keyframesMap.set(kf.frame, poseSnapshot);
+            });
+
+            buildFlashTimelineUI();
+            selectFrame(0);
+
+            if (data.fbxFileName && data.fbxFileName !== fbxFileName) {
+                alert(`Atenção: Esta animação foi criada para o arquivo "${data.fbxFileName}". O modelo atual é "${fbxFileName}".`);
+            } else {
+                alert('Animação carregada com sucesso!');
+            }
+        } catch (err) {
+            alert('Erro ao carregar o arquivo de animação: ' + err.message);
+        }
+    };
+    reader.readAsText(file);
+});
+
+// --- ATALHOS DE TECLADO (F6, F7, ESPAÇO, CTRL+Z, CTRL+Y) ---
+window.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+            redo();
+        } else {
+            undo();
+        }
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        redo();
+    } else if (e.key === 'F6') { 
+        e.preventDefault(); 
+        saveKeyframe(currentFrame, true); 
+    } else if (e.key === 'F7') { 
+        e.preventDefault(); 
+        clearKeyframe(currentFrame); 
+    } else if (e.code === 'Space' && e.target.tagName !== 'INPUT') { 
+        e.preventDefault(); 
+        togglePlay(); 
+    }
+});
+
+// --- TEMA LIGHT / DARK ---
+document.getElementById('btn-theme-toggle').addEventListener('click', () => {
+    document.body.classList.toggle('light-theme');
+    const isLight = document.body.classList.contains('light-theme');
+    
+    scene.background.setHex(isLight ? 0xe0e0e0 : 0x1a1a1a);
+    scene.remove(gridHelper);
+    gridHelper = new THREE.GridHelper(20, 20, isLight ? 0x888888 : 0x444444, isLight ? 0xcccccc : 0x222222);
+    scene.add(gridHelper);
+});
+
+// CONTROLES VISUAIS
+document.getElementById('picker-radius-slider').addEventListener('input', (e) => {
+    const newRadius = parseFloat(e.target.value);
+    const newGeo = new THREE.SphereGeometry(newRadius, 16, 16);
+    bonePickers.forEach(p => { p.geometry.dispose(); p.geometry = newGeo; });
+});
+
+const setMode = (mode, btnId) => {
+    transformControls.setMode(mode);
+    ['btn-mode-translate', 'btn-mode-rotate', 'btn-mode-scale'].forEach(id => {
+        document.getElementById(id).classList.toggle('active', id === btnId);
+    });
+};
+
+document.getElementById('btn-mode-translate').addEventListener('click', () => setMode('translate', 'btn-mode-translate'));
+document.getElementById('btn-mode-rotate').addEventListener('click', () => setMode('rotate', 'btn-mode-rotate'));
+document.getElementById('btn-mode-scale').addEventListener('click', () => setMode('scale', 'btn-mode-scale'));
+
+function updateVisibility() {
+    const showSkeleton = document.getElementById('chk-skeleton').checked;
+    const showPickers = document.getElementById('chk-pickers').checked;
+
+    if (skeletonHelper) skeletonHelper.visible = showSkeleton;
+    bonePickers.forEach(p => p.visible = showPickers);
+}
+
+document.getElementById('chk-skeleton').addEventListener('change', updateVisibility);
+document.getElementById('chk-pickers').addEventListener('change', updateVisibility);
+
+document.getElementById('opacity-slider').addEventListener('input', (e) => {
+    const opacity = parseFloat(e.target.value);
+    if (characterGroup) {
+        characterGroup.traverse((child) => { if (child.isMesh) child.material.opacity = opacity; });
+    }
+});
+
+// SELEÇÃO DE OSSOS NA CENA
+window.addEventListener('pointerdown', (event) => {
+    if (event.clientY > window.innerHeight - 120 || event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON' || event.target.tagName === 'LABEL') return;
+
+    mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(event.clientY / (window.innerHeight - 120)) * 2 + 1;
+
+    raycaster.setFromCamera(mouse, camera);
+    const visiblePickers = bonePickers.filter(p => p.visible);
+    const intersects = raycaster.intersectObjects(visiblePickers);
+
+    if (intersects.length > 0) {
+        const pickedObject = intersects[0].object;
+        const targetBone = boneMap.get(pickedObject);
+        if (targetBone) selectBone(targetBone);
+    }
+});
+
+// LOOP DE RENDERIZAÇÃO
+function animate() {
+    requestAnimationFrame(animate);
+    updateHelpers();
+    renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / (window.innerHeight - 120);
+    camera.updateUpdateMatrix();
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight - 120);
+});
+</script>
+</body>
+</html>
