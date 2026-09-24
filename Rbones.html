@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Animação FBX estilo Flash Timeline</title>
+    <title>Animação e Leitura de FBX / glTF / GLB</title>
     <style>
         :root {
             --bg-color: #1a1a1a;
@@ -18,7 +18,7 @@
             --keyframe-bg: #c0c0c0;
             --keyframe-dot: #000000;
             --input-bg: #222;
-            --tween-line-color: #800020; /* Cor Vermelho-Vinho para Interpolação */
+            --tween-line-color: #800020;
         }
 
         body.light-theme {
@@ -53,11 +53,11 @@
             gap: 8px;
             z-index: 100;
             width: 280px;
-            max-height: 55vh;
+            max-height: 60vh;
             overflow-y: auto;
             border: 1px solid var(--border-color);
         }
-        button, input { cursor: pointer; padding: 4px; }
+        button, input, select { cursor: pointer; padding: 4px; }
         .active { background: #4CAF50; color: white; border: none; }
         .btn-group { display: flex; gap: 4px; }
         .btn-group button { flex: 1; font-size: 11px; }
@@ -65,7 +65,7 @@
         .section-title { font-size: 11px; font-weight: bold; color: #4CAF50; text-transform: uppercase; }
         .slider-row { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
 
-        /* PAINEL DO OSSO */
+        /* PAINEL DO OSSO / MODELO */
         #bone-panel {
             background: rgba(125, 125, 125, 0.1);
             border: 1px solid var(--border-color);
@@ -203,14 +203,13 @@
             z-index: 2;
         }
 
-        /* LINHA DE INTERPOLAÇÃO (VERMELHO VINHO) */
         .frame-cell.is-interpolated::before {
             content: '';
             position: absolute;
-            top: calc(50% - 2px);
+            top: calc(50% - 1px);
             left: 0;
             width: 100%;
-            height: 4px;
+            height: 2px;
             background: var(--tween-line-color);
             z-index: 1;
         }
@@ -238,11 +237,31 @@
 <!-- PAINEL LATERAL -->
 <div id="ui">
     <div style="display: flex; justify-content: space-between; align-items: center;">
-        <label style="font-size: 11px;"><strong>1. Carregar FBX:</strong></label>
+        <label style="font-size: 11px;"><strong>1. Carregar Modelo (FBX/glTF/GLB):</strong></label>
         <button id="btn-theme-toggle" style="font-size: 10px; padding: 2px 6px;">🌓 Tema Light/Dark</button>
     </div>
-    <input type="file" id="file-input" accept=".fbx" style="font-size: 11px;">
-    
+    <input type="file" id="file-input" accept=".fbx, .gltf, .glb" style="font-size: 11px;">
+    <span id="model-status" style="font-size: 10px; color: #888;">Nenhum modelo carregado.</span>
+
+    <!-- SEÇÃO DE ANIMAÇÕES EMBUTIDAS -->
+    <div id="embedded-anim-container" style="display: none; flex-direction: column; gap: 4px;">
+        <label style="font-size: 11px;"><strong>Animações Embutidas:</strong></label>
+        <select id="embedded-anim-select" style="font-size: 11px; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color);"></select>
+    </div>
+
+    <!-- SEÇÃO DE TEXTURA EXTERNA -->
+    <label style="font-size: 11px; margin-top: 4px;"><strong>2. Substituir Textura Externa (Opcional):</strong></label>
+    <input type="file" id="texture-input" accept="image/png, image/jpeg" style="font-size: 11px;">
+    <span id="texture-status" style="font-size: 10px; color: #888;">Textura do modelo preservada.</span>
+
+    <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
+
+    <label style="font-size: 11px;"><strong>Sessão no Navegador:</strong></label>
+    <div class="btn-group">
+        <button id="btn-save-session" style="background: #2e7d32; color: #fff;">💾 Salvar Projeto</button>
+        <button id="btn-load-session" style="background: #ef6c00; color: #fff;">📂 Carregar Projeto</button>
+    </div>
+
     <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
 
     <div class="checkbox-row">
@@ -262,7 +281,7 @@
 
     <div class="slider-row">
         <label>Opacidade da Malha:</label>
-        <input type="range" id="opacity-slider" min="0.0" max="1.0" step="0.05" value="0.5">
+        <input type="range" id="opacity-slider" min="0.0" max="1.0" step="0.05" value="1.0">
     </div>
 
     <hr style="width: 100%; border: 0.5px solid var(--border-color); margin: 0;">
@@ -274,7 +293,8 @@
         <button id="btn-mode-scale">Escalonar</button>
     </div>
 
-    <!-- CONTROLE INDIVIDUAL DO OSSO -->
+    <button id="btn-select-root" style="background: #1976d2; color: #fff; font-size: 11px; margin-top: 4px;">🦴 Selecionar Raiz (Todo o Esqueleto)</button>
+
     <div id="bone-panel" style="display: none;">
         <span class="section-title" id="selected-bone-name">Osso Selecionado</span>
         
@@ -314,8 +334,8 @@
         </div>
 
         <div style="display: flex; gap: 4px; border-left: 1px solid var(--border-color); padding-left: 8px;">
-            <button id="btn-save-anim" style="background: #0277bd;">💾 Gravar</button>
-            <button id="btn-load-anim" style="background: #ef6c00;">📂 Carregar</button>
+            <button id="btn-save-anim" style="background: #0277bd;">💾 Exportar JSON</button>
+            <button id="btn-load-anim" style="background: #ef6c00;">📂 Importar JSON</button>
             <input type="file" id="anim-file-input" accept=".json" style="display: none;">
         </div>
 
@@ -342,10 +362,10 @@
 <script type="module">
 import * as THREE from 'three';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
-// --- CONFIGURAÇÃO DA CENA ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a1a);
 
@@ -357,6 +377,7 @@ camera.position.set(0, 100, 250);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight - 120);
+renderer.outputColorSpace = THREE.SRGBColorSpace; // Garantir mapeamento correto de cores das texturas GLB
 document.body.appendChild(renderer.domElement);
 
 const orbit = new OrbitControls(camera, renderer.domElement);
@@ -367,7 +388,53 @@ const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
 dirLight.position.set(100, 200, 150);
 scene.add(dirLight);
 
-// --- HISTÓRICO (UNDO / REDO) ---
+const SETTINGS_KEY = 'model_animator_settings';
+const SESSION_PROJECT_KEY = 'model_animator_project_session';
+
+function saveEnvironmentSettings() {
+    const settings = {
+        theme: document.body.classList.contains('light-theme') ? 'light' : 'dark',
+        showSkeleton: document.getElementById('chk-skeleton').checked,
+        showPickers: document.getElementById('chk-pickers').checked,
+        pickerRadius: document.getElementById('picker-radius-slider').value,
+        meshOpacity: document.getElementById('opacity-slider').value,
+        cameraPos: [camera.position.x, camera.position.y, camera.position.z],
+        cameraTarget: [orbit.target.x, orbit.target.y, orbit.target.z]
+    };
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function loadEnvironmentSettings() {
+    const saved = localStorage.getItem(SETTINGS_KEY);
+    if (!saved) return;
+
+    try {
+        const settings = JSON.parse(saved);
+        if (settings.theme === 'light') {
+            document.body.classList.add('light-theme');
+            scene.background.setHex(0xe0e0e0);
+            scene.remove(gridHelper);
+            gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0xcccccc);
+            scene.add(gridHelper);
+        }
+        if (settings.showSkeleton !== undefined) document.getElementById('chk-skeleton').checked = settings.showSkeleton;
+        if (settings.showPickers !== undefined) document.getElementById('chk-pickers').checked = settings.showPickers;
+        if (settings.pickerRadius !== undefined) document.getElementById('picker-radius-slider').value = settings.pickerRadius;
+        if (settings.meshOpacity !== undefined) document.getElementById('opacity-slider').value = settings.meshOpacity;
+
+        if (settings.cameraPos) camera.position.set(...settings.cameraPos);
+        if (settings.cameraTarget) {
+            orbit.target.set(...settings.cameraTarget);
+            orbit.update();
+        }
+    } catch (e) {
+        console.warn('Erro ao carregar configurações:', e);
+    }
+}
+
+orbit.addEventListener('end', saveEnvironmentSettings);
+loadEnvironmentSettings();
+
 const undoStack = [];
 const redoStack = [];
 const MAX_HISTORY = 30;
@@ -389,7 +456,6 @@ function pushState() {
 
 function undo() {
     if (undoStack.length === 0) return;
-
     const currentSnapshot = new Map();
     keyframesMap.forEach((pose, frameIdx) => {
         const poseCopy = pose.map(p => ({
@@ -407,7 +473,6 @@ function undo() {
 
 function redo() {
     if (redoStack.length === 0) return;
-
     const currentSnapshot = new Map();
     keyframesMap.forEach((pose, frameIdx) => {
         const poseCopy = pose.map(p => ({
@@ -437,14 +502,11 @@ function restoreState(snapshotMap) {
     applyPoseForFrame(currentFrame);
 }
 
-// --- TRANSFORM CONTROLS ---
 const transformControls = new TransformControls(camera, renderer.domElement);
 transformControls.setMode('translate');
 transformControls.addEventListener('dragging-changed', (event) => {
     orbit.enabled = !event.value;
-    if (event.value) {
-        pushState();
-    }
+    if (event.value) pushState();
 });
 
 transformControls.addEventListener('change', () => {
@@ -455,15 +517,20 @@ transformControls.addEventListener('change', () => {
 });
 scene.add(transformControls);
 
-// --- ESTADO DA APLICAÇÃO ---
 let characterGroup = null;
 let skeletonHelper = null;
 let bonePickers = [];
 let selectedBone = null;
 let boneMap = new Map();
 let allBones = [];
+let loadedTexture = null;
 
-let fbxFileName = "";
+let mixer = null;
+let animations = [];
+let activeAction = null;
+const clock = new THREE.Clock();
+
+let loadedFileName = "";
 let totalFrames = 60;
 let currentFrame = 0;
 let keyframesMap = new Map();
@@ -474,40 +541,93 @@ let targetFPS = 12;
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
-// --- CARREGADOR FBX ---
+// CARREGAR TEXTURA EXTERNA (SOBREPÕE A TEXTURA DO GLB SE FOR SELECIONADA)
+document.getElementById('texture-input').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+        const textureLoader = new THREE.TextureLoader();
+        textureLoader.load(e.target.result, (texture) => {
+            texture.colorSpace = THREE.SRGBColorSpace;
+            loadedTexture = texture;
+            applyTextureToModel();
+            document.getElementById('texture-status').innerText = `Textura Manual: ${file.name}`;
+        });
+    };
+});
+
+function applyTextureToModel() {
+    if (!characterGroup || !loadedTexture) return;
+
+    characterGroup.traverse((child) => {
+        if (child.isMesh) {
+            if (Array.isArray(child.material)) {
+                child.material.forEach(mat => {
+                    mat.map = loadedTexture;
+                    mat.needsUpdate = true;
+                });
+            } else if (child.material) {
+                child.material.map = loadedTexture;
+                child.material.needsUpdate = true;
+            }
+        }
+    });
+}
+
+// CARREGAR ARQUIVO (FBX / GLTF / GLB)
 document.getElementById('file-input').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
-    fbxFileName = file.name;
+    loadedFileName = file.name;
+    const ext = loadedFileName.split('.').pop().toLowerCase();
+    document.getElementById('model-status').innerText = `Modelo: ${loadedFileName}`;
 
     const reader = new FileReader();
     reader.readAsArrayBuffer(file);
     reader.onload = (e) => {
-        const loader = new FBXLoader();
-        const fbx = loader.parse(e.target.result, '');
+        if (ext === 'fbx') {
+            loadFBXFromArrayBuffer(e.target.result);
+        } else if (ext === 'gltf' || ext === 'glb') {
+            loadGLTFFromArrayBuffer(e.target.result);
+        }
+    };
+});
 
-        clearCurrentModel();
+function processLoadedModel(model, modelAnimations = []) {
+    clearCurrentModel();
 
-        characterGroup = fbx;
-        scene.add(characterGroup);
-        characterGroup.scale.setScalar(1);
+    characterGroup = model;
+    scene.add(characterGroup);
+    characterGroup.scale.setScalar(1);
 
-        skeletonHelper = new THREE.SkeletonHelper(characterGroup);
-        skeletonHelper.material.linewidth = 2;
-        scene.add(skeletonHelper);
+    allBones.push(characterGroup);
 
-        const radius = parseFloat(document.getElementById('picker-radius-slider').value);
+    skeletonHelper = new THREE.SkeletonHelper(characterGroup);
+    skeletonHelper.material.linewidth = 2;
+    scene.add(skeletonHelper);
 
-        characterGroup.traverse((child) => {
-            if (child.isMesh) {
-                child.material.side = THREE.DoubleSide;
-                child.material.transparent = true;
-                child.material.opacity = parseFloat(document.getElementById('opacity-slider').value);
+    const radius = parseFloat(document.getElementById('picker-radius-slider').value);
+
+    characterGroup.traverse((child) => {
+        if (child.isMesh) {
+            child.material.side = THREE.DoubleSide;
+            child.material.transparent = true;
+            child.material.opacity = parseFloat(document.getElementById('opacity-slider').value);
+
+            // Garante que texturas internas embutidas do GLB fiquem no espaço de cor correto
+            if (child.material.map) {
+                child.material.map.colorSpace = THREE.SRGBColorSpace;
+                child.material.needsUpdate = true;
             }
+        }
 
-            if (child.isBone) {
-                child.matrixAutoUpdate = true;
+        if (child.isBone || child.isObject3D) {
+            if (child.isBone) child.matrixAutoUpdate = true;
+            if (child.isBone && !allBones.includes(child)) {
                 allBones.push(child);
 
                 const pickerGeo = new THREE.SphereGeometry(radius, 16, 16);
@@ -519,13 +639,61 @@ document.getElementById('file-input').addEventListener('change', (event) => {
                 bonePickers.push(picker);
                 boneMap.set(picker, child);
             }
-        });
+        }
+    });
 
-        saveKeyframe(0, true, false);
-        buildFlashTimelineUI();
-        selectFrame(0);
-        updateVisibility();
-    };
+    if (loadedTexture) applyTextureToModel();
+
+    // GERENCIAMENTO DE ANIMAÇÕES EMBUTIDAS (GLTF / GLB / FBX)
+    animations = modelAnimations;
+    const animSelect = document.getElementById('embedded-anim-select');
+    const animContainer = document.getElementById('embedded-anim-container');
+    animSelect.innerHTML = '<option value="">Nenhuma (Usar Linha do Tempo)</option>';
+
+    if (animations.length > 0) {
+        mixer = new THREE.AnimationMixer(characterGroup);
+        animations.forEach((clip, index) => {
+            const opt = document.createElement('option');
+            opt.value = index;
+            opt.innerText = clip.name || `Animação ${index + 1}`;
+            animSelect.appendChild(opt);
+        });
+        animContainer.style.display = 'flex';
+    } else {
+        animContainer.style.display = 'none';
+    }
+
+    saveKeyframe(0, true, false);
+    buildFlashTimelineUI();
+    selectFrame(0);
+    selectBone(characterGroup);
+    updateVisibility();
+}
+
+function loadFBXFromArrayBuffer(arrayBuffer) {
+    const loader = new FBXLoader();
+    const fbx = loader.parse(arrayBuffer, '');
+    processLoadedModel(fbx, fbx.animations || []);
+}
+
+function loadGLTFFromArrayBuffer(arrayBuffer) {
+    const loader = new GLTFLoader();
+    // parse() decodifica diretamente o arquivo binário .glb com sua geometria e imagem de textura inclusas
+    loader.parse(arrayBuffer, '', (gltf) => {
+        processLoadedModel(gltf.scene, gltf.animations || []);
+    });
+}
+
+document.getElementById('embedded-anim-select').addEventListener('change', (e) => {
+    const index = e.target.value;
+    if (activeAction) activeAction.stop();
+
+    if (index !== "" && mixer && animations[index]) {
+        activeAction = mixer.clipAction(animations[index]);
+        activeAction.play();
+    } else {
+        activeAction = null;
+    }
 });
 
 function clearCurrentModel() {
@@ -541,6 +709,9 @@ function clearCurrentModel() {
     redoStack.length = 0;
     transformControls.detach();
     selectedBone = null;
+    mixer = null;
+    activeAction = null;
+    animations = [];
     document.getElementById('bone-panel').style.display = 'none';
 }
 
@@ -558,9 +729,13 @@ function selectBone(bone) {
     selectedBone = bone;
     transformControls.attach(bone);
     document.getElementById('bone-panel').style.display = 'flex';
-    document.getElementById('selected-bone-name').innerText = bone.name || 'Osso Selecionado';
+    document.getElementById('selected-bone-name').innerText = (bone === characterGroup) ? 'Raiz (Todo o Esqueleto)' : (bone.name || 'Osso Selecionado');
     updateUIInputs();
 }
+
+document.getElementById('btn-select-root').addEventListener('click', () => {
+    if (characterGroup) selectBone(characterGroup);
+});
 
 function updateUIInputs() {
     if (!selectedBone) return;
@@ -572,7 +747,6 @@ function updateUIInputs() {
     document.getElementById('rot-z').value = THREE.MathUtils.radToDeg(selectedBone.rotation.z).toFixed(0);
 }
 
-// ATUALIZAÇÃO VIA DIGITAÇÃO
 ['pos-x', 'pos-y', 'pos-z'].forEach((id, index) => {
     const inputEl = document.getElementById(id);
     inputEl.addEventListener('focus', () => pushState());
@@ -593,7 +767,6 @@ function updateUIInputs() {
     });
 });
 
-// --- TIMELINE E KEYFRAMES ---
 function buildFlashTimelineUI() {
     const rulerContainer = document.getElementById('timeline-ruler');
     const trackContainer = document.getElementById('timeline-track');
@@ -639,7 +812,9 @@ function clearKeyframe(frameIdx) {
 function selectFrame(frameIdx) {
     currentFrame = Math.max(0, Math.min(totalFrames - 1, frameIdx));
     document.getElementById('current-frame-text').innerText = currentFrame + 1;
-    applyPoseForFrame(currentFrame);
+    if (!activeAction) {
+        applyPoseForFrame(currentFrame);
+    }
     updateTimelineGrid();
 }
 
@@ -695,29 +870,84 @@ function updateTimelineGrid() {
         cell.classList.toggle('active-frame', idx === currentFrame);
         cell.classList.toggle('has-keyframe', keyframesMap.has(idx));
 
-        // Verifica se o frame está dentro do intervalo de interpolação entre dois keyframes
         let isTween = false;
         if (!keyframesMap.has(idx) && sortedFrames.length >= 2) {
             const firstKey = sortedFrames[0];
             const lastKey = sortedFrames[sortedFrames.length - 1];
-            if (idx > firstKey && idx < lastKey) {
-                isTween = true;
-            }
+            if (idx > firstKey && idx < lastKey) isTween = true;
         }
         cell.classList.toggle('is-interpolated', isTween);
     });
 }
 
-// --- CENTRALIZAR A CENA ---
 function centerScene() {
     camera.position.set(0, 100, 250);
     orbit.target.set(0, 90, 0);
     orbit.update();
+    saveEnvironmentSettings();
 }
 
 document.getElementById('btn-center-scene').addEventListener('click', centerScene);
 
-// --- SCRUBBING / ARRASTAR COM O MOUSE NA TIMELINE ---
+function serializeProjectData() {
+    const keyframesArr = [];
+    keyframesMap.forEach((pose, frameIdx) => {
+        keyframesArr.push({
+            frame: frameIdx,
+            pose: pose.map(p => ({
+                pos: [p.position.x, p.position.y, p.position.z],
+                rot: [p.quaternion.x, p.quaternion.y, p.quaternion.z, p.quaternion.w],
+                scl: [p.scale.x, p.scale.y, p.scale.z]
+            }))
+        });
+    });
+
+    return {
+        loadedFileName: loadedFileName || 'modelo.glb',
+        fps: targetFPS,
+        totalFrames: totalFrames,
+        keyframes: keyframesArr
+    };
+}
+
+document.getElementById('btn-save-session').addEventListener('click', () => {
+    localStorage.setItem(SESSION_PROJECT_KEY, JSON.stringify(serializeProjectData()));
+    saveEnvironmentSettings();
+    alert('Projeto salvo com sucesso!');
+});
+
+document.getElementById('btn-load-session').addEventListener('click', () => {
+    const savedProject = localStorage.getItem(SESSION_PROJECT_KEY);
+    if (!savedProject) return alert('Nenhum projeto encontrado.');
+    try {
+        applySerializedProject(JSON.parse(savedProject));
+        alert('Projeto carregado!');
+    } catch (err) {
+        alert('Erro ao carregar: ' + err.message);
+    }
+});
+
+function applySerializedProject(data) {
+    if (data.loadedFileName) loadedFileName = data.loadedFileName;
+    if (data.fps) { targetFPS = data.fps; document.getElementById('fps-input').value = targetFPS; }
+    if (data.totalFrames) { totalFrames = data.totalFrames; document.getElementById('total-frames-input').value = totalFrames; }
+
+    if (allBones.length > 0) {
+        pushState();
+        keyframesMap.clear();
+        data.keyframes.forEach(kf => {
+            const poseSnapshot = kf.pose.map(p => ({
+                position: new THREE.Vector3(...p.pos),
+                quaternion: new THREE.Quaternion(...p.rot),
+                scale: new THREE.Vector3(...p.scl)
+            }));
+            keyframesMap.set(kf.frame, poseSnapshot);
+        });
+        buildFlashTimelineUI();
+        selectFrame(0);
+    }
+}
+
 const scrollArea = document.getElementById('timeline-scroll');
 let isScrubbing = false;
 
@@ -730,43 +960,23 @@ function handleTimelineScrub(e) {
     }
 }
 
-scrollArea.addEventListener('mousedown', (e) => {
-    isScrubbing = true;
-    handleTimelineScrub(e);
-});
+scrollArea.addEventListener('mousedown', (e) => { isScrubbing = true; handleTimelineScrub(e); });
+window.addEventListener('mousemove', (e) => { if (isScrubbing) handleTimelineScrub(e); });
+window.addEventListener('mouseup', () => { isScrubbing = false; });
 
-window.addEventListener('mousemove', (e) => {
-    if (isScrubbing) {
-        handleTimelineScrub(e);
-    }
-});
-
-window.addEventListener('mouseup', () => {
-    isScrubbing = false;
-});
-
-// --- DEFINIÇÃO DO FRAME FINAL E FPS ---
 document.getElementById('total-frames-input').addEventListener('change', (e) => {
-    let val = parseInt(e.target.value) || 60;
-    val = Math.max(2, Math.min(500, val));
+    let val = Math.max(2, Math.min(500, parseInt(e.target.value) || 60));
     e.target.value = val;
     totalFrames = val;
     buildFlashTimelineUI();
-    if (currentFrame >= totalFrames) {
-        selectFrame(totalFrames - 1);
-    }
+    if (currentFrame >= totalFrames) selectFrame(totalFrames - 1);
 });
 
 document.getElementById('fps-input').addEventListener('change', (e) => {
-    let val = parseInt(e.target.value) || 12;
-    val = Math.max(1, Math.min(60, val));
+    let val = Math.max(1, Math.min(60, parseInt(e.target.value) || 12));
     e.target.value = val;
     targetFPS = val;
-    
-    if (isPlaying) {
-        stopAnimation();
-        startAnimation();
-    }
+    if (isPlaying) { stopAnimation(); startAnimation(); }
 });
 
 function togglePlay() {
@@ -794,136 +1004,60 @@ document.getElementById('btn-add-keyframe').addEventListener('click', () => save
 document.getElementById('btn-clear-keyframe').addEventListener('click', () => clearKeyframe(currentFrame));
 document.getElementById('btn-undo').addEventListener('click', undo);
 
-// --- EXPORTAR E IMPORTAR ANIMAÇÃO (JSON) ---
 document.getElementById('btn-save-anim').addEventListener('click', () => {
-    if (keyframesMap.size === 0) {
-        alert('Nenhum keyframe salvo para gravar.');
-        return;
-    }
-
-    const exportData = {
-        fbxFileName: fbxFileName || 'modelo_desconhecido.fbx',
-        fps: targetFPS,
-        totalFrames: totalFrames,
-        bonesOrder: allBones.map(b => b.name),
-        keyframes: []
-    };
-
-    keyframesMap.forEach((pose, frameIdx) => {
-        exportData.keyframes.push({
-            frame: frameIdx,
-            pose: pose.map(p => ({
-                pos: [p.position.x, p.position.y, p.position.z],
-                rot: [p.quaternion.x, p.quaternion.y, p.quaternion.z, p.quaternion.w],
-                scl: [p.scale.x, p.scale.y, p.scale.z]
-            }))
-        });
-    });
-
+    if (keyframesMap.size === 0) return alert('Sem keyframes.');
+    const exportData = serializeProjectData();
+    exportData.bonesOrder = allBones.map(b => b.name || 'Root');
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = (fbxFileName ? fbxFileName.replace('.fbx', '') : 'animacao') + '_export.json';
+    a.download = (loadedFileName ? loadedFileName.replace(/\.[^/.]+$/, '') : 'animacao') + '_export.json';
     a.click();
     URL.revokeObjectURL(url);
 });
 
-document.getElementById('btn-load-anim').addEventListener('click', () => {
-    if (allBones.length === 0) {
-        alert('Carregue um arquivo FBX antes de importar a animação.');
-        return;
-    }
-    document.getElementById('anim-file-input').click();
-});
-
+document.getElementById('btn-load-anim').addEventListener('click', () => document.getElementById('anim-file-input').click());
 document.getElementById('anim-file-input').addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
         try {
-            const data = JSON.parse(event.target.result);
-            if (!data.keyframes) throw new Error('Formato inválido');
-
-            pushState();
-            keyframesMap.clear();
-
-            if (data.fps) {
-                targetFPS = data.fps;
-                document.getElementById('fps-input').value = targetFPS;
-            }
-
-            if (data.totalFrames) {
-                totalFrames = data.totalFrames;
-                document.getElementById('total-frames-input').value = totalFrames;
-            }
-
-            data.keyframes.forEach(kf => {
-                const poseSnapshot = kf.pose.map(p => ({
-                    position: new THREE.Vector3(...p.pos),
-                    quaternion: new THREE.Quaternion(...p.rot),
-                    scale: new THREE.Vector3(...p.scl)
-                }));
-                keyframesMap.set(kf.frame, poseSnapshot);
-            });
-
-            buildFlashTimelineUI();
-            selectFrame(0);
-
-            if (data.fbxFileName && data.fbxFileName !== fbxFileName) {
-                alert(`Atenção: Esta animação foi criada para o arquivo "${data.fbxFileName}". O modelo atual é "${fbxFileName}".`);
-            } else {
-                alert('Animação carregada com sucesso!');
-            }
+            applySerializedProject(JSON.parse(event.target.result));
+            alert('Animação importada!');
         } catch (err) {
-            alert('Erro ao carregar o arquivo de animação: ' + err.message);
+            alert('Erro: ' + err.message);
         }
     };
     reader.readAsText(file);
 });
 
-// --- ATALHOS DE TECLADO ---
 window.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
         e.preventDefault();
-        if (e.shiftKey) {
-            redo();
-        } else {
-            undo();
-        }
+        if (e.shiftKey) redo(); else undo();
     } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
-        e.preventDefault();
-        redo();
-    } else if (e.key === 'F6') { 
-        e.preventDefault(); 
-        saveKeyframe(currentFrame, true); 
-    } else if (e.key === 'F7') { 
-        e.preventDefault(); 
-        clearKeyframe(currentFrame); 
-    } else if (e.code === 'Space' && e.target.tagName !== 'INPUT') { 
-        e.preventDefault(); 
-        togglePlay(); 
-    }
+        e.preventDefault(); redo();
+    } else if (e.key === 'F6') { e.preventDefault(); saveKeyframe(currentFrame, true); }
+    else if (e.key === 'F7') { e.preventDefault(); clearKeyframe(currentFrame); }
+    else if (e.code === 'Space' && e.target.tagName !== 'INPUT') { e.preventDefault(); togglePlay(); }
 });
 
-// --- TEMA LIGHT / DARK ---
 document.getElementById('btn-theme-toggle').addEventListener('click', () => {
     document.body.classList.toggle('light-theme');
     const isLight = document.body.classList.contains('light-theme');
-    
     scene.background.setHex(isLight ? 0xe0e0e0 : 0x1a1a1a);
     scene.remove(gridHelper);
     gridHelper = new THREE.GridHelper(20, 20, isLight ? 0x888888 : 0x444444, isLight ? 0xcccccc : 0x222222);
     scene.add(gridHelper);
+    saveEnvironmentSettings();
 });
 
-// CONTROLES VISUAIS
 document.getElementById('picker-radius-slider').addEventListener('input', (e) => {
-    const newRadius = parseFloat(e.target.value);
-    const newGeo = new THREE.SphereGeometry(newRadius, 16, 16);
+    const newGeo = new THREE.SphereGeometry(parseFloat(e.target.value), 16, 16);
     bonePickers.forEach(p => { p.geometry.dispose(); p.geometry = newGeo; });
+    saveEnvironmentSettings();
 });
 
 const setMode = (mode, btnId) => {
@@ -938,44 +1072,39 @@ document.getElementById('btn-mode-rotate').addEventListener('click', () => setMo
 document.getElementById('btn-mode-scale').addEventListener('click', () => setMode('scale', 'btn-mode-scale'));
 
 function updateVisibility() {
-    const showSkeleton = document.getElementById('chk-skeleton').checked;
-    const showPickers = document.getElementById('chk-pickers').checked;
-
-    if (skeletonHelper) skeletonHelper.visible = showSkeleton;
-    bonePickers.forEach(p => p.visible = showPickers);
+    if (skeletonHelper) skeletonHelper.visible = document.getElementById('chk-skeleton').checked;
+    bonePickers.forEach(p => p.visible = document.getElementById('chk-pickers').checked);
 }
 
-document.getElementById('chk-skeleton').addEventListener('change', updateVisibility);
-document.getElementById('chk-pickers').addEventListener('change', updateVisibility);
+document.getElementById('chk-skeleton').addEventListener('change', () => { updateVisibility(); saveEnvironmentSettings(); });
+document.getElementById('chk-pickers').addEventListener('change', () => { updateVisibility(); saveEnvironmentSettings(); });
 
 document.getElementById('opacity-slider').addEventListener('input', (e) => {
     const opacity = parseFloat(e.target.value);
-    if (characterGroup) {
-        characterGroup.traverse((child) => { if (child.isMesh) child.material.opacity = opacity; });
-    }
+    if (characterGroup) characterGroup.traverse((child) => { if (child.isMesh) child.material.opacity = opacity; });
+    saveEnvironmentSettings();
 });
 
-// SELEÇÃO DE OSSOS NA CENA
 window.addEventListener('pointerdown', (event) => {
-    if (event.clientY > window.innerHeight - 120 || event.target.tagName === 'INPUT' || event.target.tagName === 'BUTTON' || event.target.tagName === 'LABEL') return;
-
+    if (event.clientY > window.innerHeight - 120 || ['INPUT', 'BUTTON', 'LABEL', 'SELECT'].includes(event.target.tagName)) return;
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / (window.innerHeight - 120)) * 2 + 1;
-
     raycaster.setFromCamera(mouse, camera);
-    const visiblePickers = bonePickers.filter(p => p.visible);
-    const intersects = raycaster.intersectObjects(visiblePickers);
-
+    const intersects = raycaster.intersectObjects(bonePickers.filter(p => p.visible));
     if (intersects.length > 0) {
-        const pickedObject = intersects[0].object;
-        const targetBone = boneMap.get(pickedObject);
+        const targetBone = boneMap.get(intersects[0].object);
         if (targetBone) selectBone(targetBone);
     }
 });
 
-// LOOP DE RENDERIZAÇÃO
 function animate() {
     requestAnimationFrame(animate);
+    
+    const delta = clock.getDelta();
+    if (mixer && activeAction) {
+        mixer.update(delta);
+    }
+
     updateHelpers();
     renderer.render(scene, camera);
 }
