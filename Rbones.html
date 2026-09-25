@@ -6,45 +6,58 @@
     <title>Animação e Leitura de OBJ / FBX / glTF / GLB</title>
     <style>
         :root {
-            --bg-color: #1a1a1a;
-            --panel-bg: rgba(25, 25, 25, 0.92);
-            --text-color: #ffffff;
-            --border-color: #444;
-            --timeline-bg: #2b2b2b;
-            --timeline-controls-bg: #333;
-            --timeline-ruler-bg: #2a2a2a;
-            --timeline-track-bg: #222;
-            --frame-cell-bg: #2c2c2c;
-            --keyframe-bg: #c0c0c0;
-            --keyframe-dot: #000000;
-            --input-bg: #222;
-            --tween-line-color: #800020;
+            /* Tema LIGHT como padrão: alto contraste e leitura confortável */
+            --bg-color: #f4f6f8;
+            --panel-bg: rgba(255, 255, 255, 0.97);
+            --text-color: #1f2937;
+            --muted-text-color: #5f6b7a;
+            --border-color: #c7ced6;
+            --timeline-bg: #e9edf2;
+            --timeline-controls-bg: #dfe5eb;
+            --timeline-ruler-bg: #eef2f6;
+            --timeline-track-bg: #ffffff;
+            --frame-cell-bg: #f8fafc;
+            --keyframe-bg: #b9c4d0;
+            --keyframe-dot: #17202a;
+            --input-bg: #ffffff;
+            --primary-blue: #1565c0;
+            --primary-blue-dark: #0d47a1;
+            --primary-blue-light: #e3f2fd;
+            --success: #2e7d32;
+            --danger: #c62828;
+            --warning: #ef6c00;
+            --tween-line-color: #7b1fa2;
         }
 
-        body.light-theme {
-            --bg-color: #e0e0e0;
-            --panel-bg: rgba(240, 240, 240, 0.92);
-            --text-color: #111111;
-            --border-color: #ccc;
-            --timeline-bg: #f0f0f0;
-            --timeline-controls-bg: #e0e0e0;
-            --timeline-ruler-bg: #e5e5e5;
-            --timeline-track-bg: #ffffff;
-            --frame-cell-bg: #f5f5f5;
-            --keyframe-bg: #a0a0a0;
-            --keyframe-dot: #111111;
-            --input-bg: #ffffff;
-            --tween-line-color: #800020;
+        /* Tema DARK continua disponível pelo botão, mas não é o padrão */
+        body.dark-theme {
+            --bg-color: #171b21;
+            --panel-bg: rgba(29, 34, 41, 0.97);
+            --text-color: #f3f4f6;
+            --muted-text-color: #b5bdc8;
+            --border-color: #4b5563;
+            --timeline-bg: #252b33;
+            --timeline-controls-bg: #303741;
+            --timeline-ruler-bg: #2a313a;
+            --timeline-track-bg: #1d232b;
+            --frame-cell-bg: #252c35;
+            --keyframe-bg: #697586;
+            --keyframe-dot: #ffffff;
+            --input-bg: #20262e;
+            --primary-blue: #42a5f5;
+            --primary-blue-dark: #1e88e5;
+            --primary-blue-light: #17324a;
+            --tween-line-color: #ce93d8;
         }
 
         body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); user-select: none; transition: background-color 0.3s; }
         
         button, input, select { cursor: pointer; padding: 4px; }
-        .active { background: #4CAF50; color: white; border: none; }
+        .active { background: var(--primary-blue) !important; color: #fff !important; border: none; }
         .btn-group { display: flex; gap: 4px; }
         .btn-group button { flex: 1; font-size: 11px; }
         .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
-        .section-title { font-size: 11px; font-weight: bold; color: #4CAF50; text-transform: uppercase; }
+        .section-title { font-size: 11px; font-weight: bold; color: var(--primary-blue-dark); text-transform: uppercase; }
         .slider-row { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
 
         /* Janelas Flutuantes Independentes */
@@ -63,7 +76,8 @@
         }
 
         .panel-header {
-            background: rgba(0, 0, 0, 0.3);
+            background: var(--primary-blue);
+            color: #ffffff;
             padding: 8px 10px;
             font-size: 11px;
             font-weight: bold;
@@ -85,7 +99,7 @@
             cursor: pointer;
             padding: 0 4px;
         }
-        .panel-header button.minimize-btn:hover { color: #4CAF50; }
+        .panel-header button.minimize-btn:hover { color: #dbeafe; }
 
         .panel-body {
             padding: 8px;
@@ -97,7 +111,7 @@
         }
 
         .control-block { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
-        .status-text { font-size: 10px; color: #888; }
+        .status-text { font-size: 10px; color: var(--muted-text-color); }
 
         select, input[type="file"], input[type="number"], input[type="text"] {
             font-size: 11px;
@@ -106,6 +120,46 @@
             border: 1px solid var(--border-color);
             border-radius: 3px;
             padding: 2px 4px;
+        }
+        select option {
+            background: var(--input-bg);
+            color: var(--text-color);
+        }
+        label { color: var(--text-color); }
+        input::placeholder { color: var(--muted-text-color); opacity: 1; }
+
+
+        /* Estilo para Menus Suspensos Internos (Details/Dropdown) */
+        .dropdown-section {
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--panel-bg);
+            padding: 0;
+            overflow: hidden;
+        }
+        .dropdown-section summary {
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #ffffff;
+            background: var(--primary-blue);
+            padding: 6px 8px;
+            user-select: none;
+            list-style-position: inside;
+        }
+        .dropdown-section summary:hover {
+            background: var(--primary-blue-dark);
+        }
+        .dropdown-section[open] summary {
+            background: var(--primary-blue-dark);
+        }
+        .dropdown-content {
+            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-top: 4px;
+            border-top: 1px solid var(--border-color);
         }
 
         #bone-panel {
@@ -147,7 +201,7 @@
         }
 
         .timeline-controls button {
-            background: #444;
+            background: var(--primary-blue);
             color: #fff;
             border: 1px solid var(--border-color);
             border-radius: 3px;
@@ -282,7 +336,7 @@
             color: var(--text-color);
         }
         .context-menu-item:hover {
-            background: #4CAF50;
+            background: var(--primary-blue);
             color: #fff;
         }
     </style>
@@ -308,34 +362,55 @@
             <button id="btn-bake-anim" style="background: #e65100; color: #fff; margin-top: 4px; font-size: 11px;">📌 Converter Mixamo em Keyframes</button>
         </div>
 
-        <div class="control-block">
-            <label>Textura Base (Color / Albedo):</label>
-            <input type="file" id="map-albedo" accept="image/png, image/jpeg">
-        </div>
+        <!-- Menu Suspenso (Dropdown) Separado para Texturas -->
+        <details class="dropdown-section">
+            <summary>🎨 Gerenciar Texturas do Modelo</summary>
+            <div class="dropdown-content">
+                <div class="control-block">
+                    <label>Textura Base (Color / Albedo):</label>
+                    <input type="file" id="map-albedo" accept="image/png, image/jpeg">
+                </div>
 
-        <div class="control-block">
-            <label>Mapa de Normal (Normal Map):</label>
-            <input type="file" id="map-normal" accept="image/png, image/jpeg">
-        </div>
+                <div class="control-block">
+                    <label>Mapa de Normal (Normal Map):</label>
+                    <input type="file" id="map-normal" accept="image/png, image/jpeg">
+                </div>
 
-        <div class="control-block">
-            <label>Rugosidade (Roughness Map):</label>
-            <input type="file" id="map-roughness" accept="image/png, image/jpeg">
-        </div>
+                <div class="control-block">
+                    <label>Rugosidade (Roughness Map):</label>
+                    <input type="file" id="map-roughness" accept="image/png, image/jpeg">
+                </div>
 
-        <div class="control-block">
-            <label>Metálico (Metalness Map):</label>
-            <input type="file" id="map-metalness" accept="image/png, image/jpeg">
-        </div>
+                <div class="control-block">
+                    <label>Metálico (Metalness Map):</label>
+                    <input type="file" id="map-metalness" accept="image/png, image/jpeg">
+                </div>
 
-        <div class="control-block">
-            <label>Oclusão Ambiental (AO Map):</label>
-            <input type="file" id="map-ao" accept="image/png, image/jpeg">
-        </div>
+                <div class="control-block">
+                    <label>Oclusão Ambiental (AO Map):</label>
+                    <input type="file" id="map-ao" accept="image/png, image/jpeg">
+                </div>
 
-        <span id="texture-status" class="status-text">Texturas originais preservadas.</span>
+                <span id="texture-status" class="status-text">Texturas originais preservadas.</span>
+            </div>
+        </details>
 
-        <div class="control-block">
+        <!-- Menu Suspenso (Dropdown) Separado para Exportar/Importar JSON do Projeto -->
+        <details class="dropdown-section">
+            <summary>📦 Exportar / Importar JSON do Projeto</summary>
+            <div class="dropdown-content">
+                <div class="control-block">
+                    <label>Salvar / Carregar Animação:</label>
+                    <div class="btn-group">
+                        <button id="btn-save-anim" style="background: #0277bd; color: #fff;">💾 Exportar JSON</button>
+                        <button id="btn-load-anim" style="background: #ef6c00; color: #fff;">📂 Importar JSON</button>
+                    </div>
+                    <input type="file" id="anim-file-input" accept=".json" style="display: none;">
+                </div>
+            </div>
+        </details>
+
+        <div class="control-block" style="margin-top: 4px;">
             <label>Sessão no Navegador:</label>
             <div class="btn-group">
                 <button id="btn-save-session" style="background: #2e7d32; color: #fff;">💾 Salvar</button>
@@ -513,12 +588,6 @@
             <input type="number" id="total-frames-input" value="60" min="2" max="1000">
         </div>
 
-        <div style="display: flex; gap: 4px; border-left: 1px solid var(--border-color); padding-left: 8px;">
-            <button id="btn-save-anim" style="background: #0277bd;">💾 Exportar JSON</button>
-            <button id="btn-load-anim" style="background: #ef6c00;">📂 Importar JSON</button>
-            <input type="file" id="anim-file-input" accept=".json" style="display: none;">
-        </div>
-
         <span style="font-size: 11px; margin-left: auto;">
             Frame: <strong id="current-frame-text" style="color: #4CAF50;">1</strong> / <span id="total-frames-text">60</span>
         </span>
@@ -585,9 +654,8 @@ function loadPanelsState() {
                 if (data.top) panel.style.top = data.top;
                 if (data.minimized !== undefined) {
                     const body = panel.querySelector('.panel-body');
-                    // Mantém o painel de detalhes do osso fechado caso não haja osso selecionado
                     if (panelId === 'bone-details' && panel.style.display === 'none') {
-                        // Respeita o estado dinâmico caso esteja oculto por padrão
+                        // Respeita estado oculto por padrão
                     } else {
                         body.style.display = data.minimized ? 'none' : 'flex';
                     }
@@ -647,7 +715,6 @@ document.addEventListener('mouseup', () => {
     }
 });
 
-// Carrega as posições e estados dos painéis ao iniciar
 window.addEventListener('DOMContentLoaded', loadPanelsState);
 </script>
 
@@ -660,7 +727,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { TransformControls } from 'three/addons/controls/TransformControls.js';
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a1a);
+scene.background = new THREE.Color(0xf4f6f8);
 
 const groundGroup = new THREE.Group();
 const gridHelper = new THREE.GridHelper(2000, 200, 0x777777, 0x555555);
@@ -669,7 +736,7 @@ groundGroup.add(gridHelper);
 
 const planeGeo = new THREE.PlaneGeometry(10000, 10000);
 const planeMat = new THREE.MeshStandardMaterial({ 
-    color: 0x222222, 
+    color: 0xe2e8f0, 
     roughness: 0.8, 
     metalness: 0.2,
     side: THREE.DoubleSide
@@ -874,7 +941,7 @@ function saveEnvironmentSettings() {
         settings = JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {};
     } catch(e) {}
 
-    settings.theme = document.body.classList.contains('light-theme') ? 'light' : 'dark';
+    settings.theme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
     settings.showSkeleton = document.getElementById('chk-skeleton').checked;
     settings.showPickers = document.getElementById('chk-pickers').checked;
     settings.showGround = document.getElementById('chk-ground').checked;
@@ -896,10 +963,14 @@ function loadEnvironmentSettings() {
 
     try {
         const settings = JSON.parse(saved);
-        if (settings.theme === 'light') {
-            document.body.classList.add('light-theme');
-            scene.background.setHex(0xe0e0e0);
-            planeMat.color.setHex(0xcccccc);
+        if (settings.theme === 'dark') {
+            document.body.classList.add('dark-theme');
+            scene.background.setHex(0x171b21);
+            planeMat.color.setHex(0x222222);
+        } else {
+            document.body.classList.remove('dark-theme');
+            scene.background.setHex(0xf4f6f8);
+            planeMat.color.setHex(0xe2e8f0);
         }
         if (settings.showSkeleton !== undefined) document.getElementById('chk-skeleton').checked = settings.showSkeleton;
         if (settings.showPickers !== undefined) document.getElementById('chk-pickers').checked = settings.showPickers;
@@ -2177,10 +2248,10 @@ window.addEventListener('keydown', (e) => {
 });
 
 document.getElementById('btn-theme-toggle').addEventListener('click', () => {
-    document.body.classList.toggle('light-theme');
-    const isLight = document.body.classList.contains('light-theme');
-    scene.background.setHex(isLight ? 0xe0e0e0 : 0x1a1a1a);
-    planeMat.color.setHex(isLight ? 0xcccccc : 0x222222);
+    document.body.classList.toggle('dark-theme');
+    const isLight = !document.body.classList.contains('dark-theme');
+    scene.background.setHex(isLight ? 0xf4f6f8 : 0x171b21);
+    planeMat.color.setHex(isLight ? 0xe2e8f0 : 0x222222);
     saveEnvironmentSettings();
 });
 
