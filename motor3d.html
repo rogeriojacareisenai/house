@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NicEman Studio - Editor e Teste de Jogo</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f8;
+            --panel-bg: rgba(255, 255, 255, 0.97);
+            --text-color: #1f2937;
+            --muted-text-color: #5f6b7a;
+            --border-color: #c7ced6;
+            --timeline-bg: #e9edf2;
+            --timeline-controls-bg: #dfe5eb;
+            --timeline-ruler-bg: #eef2f6;
+            --timeline-track-bg: #ffffff;
+            --frame-cell-bg: #f8fafc;
+            --keyframe-bg: #b9c4d0;
+            --keyframe-dot: #17202a;
+            --input-bg: #ffffff;
+            --primary-blue: #1565c0;
+            --primary-blue-dark: #0d47a1;
+            --primary-blue-light: #e3f2fd;
+        }
+
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); user-select: none; }
+        
+        button, input, select { cursor: pointer; padding: 4px; }
+        .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+        .status-text { font-size: 10px; color: var(--muted-text-color); }
+
+        .floating-panel {
+            position: absolute;
+            background: var(--panel-bg);
+            color: var(--text-color);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            z-index: 100;
+            width: 300px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            background: var(--primary-blue);
+            color: #ffffff;
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: move;
+            border-top-left-radius: 7px;
+            border-top-right-radius: 7px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header button.minimize-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        .panel-body {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: calc(100vh - 200px);
+            overflow-y: auto;
+        }
+
+        .control-block { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+
+        select, input[type="file"], input[type="number"], input[type="text"] {
+            font-size: 11px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 2px 4px;
+        }
+        
+        .slider-row { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+
+        #anim-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(3px);
+        }
+        .anim-modal {
+            background: #ffffff;
+            width: 450px;
+            max-height: 80vh;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .anim-modal-header {
+            background: var(--primary-blue);
+            color: #fff;
+            padding: 12px;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        .anim-modal-body {
+            padding: 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+        }
+        .anim-item-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--bg-color);
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+        }
+        .anim-modal-footer {
+            padding: 10px 12px;
+            background: var(--timeline-controls-bg);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        #preview-window-panel {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            width: 280px;
+            z-index: 150;
+            display: none;
+        }
+        #preview-canvas-container {
+            width: 100%;
+            height: 180px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #flash-timeline-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 120px;
+            background: var(--timeline-bg);
+            border-top: 2px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+        
+        .timeline-controls {
+            height: 32px;
+            background: var(--timeline-controls-bg);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .timeline-controls button {
+            background: var(--primary-blue);
+            color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            font-size: 11px;
+            padding: 3px 8px;
+        }
+        .timeline-field {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            border-left: 1px solid var(--border-color);
+            padding-left: 8px;
+        }
+        .timeline-field input { width: 38px; text-align: center; }
+        .timeline-scroll-area {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: hidden;
+            position: relative;
+            background: var(--timeline-track-bg);
+        }
+        .timeline-ruler {
+            height: 20px;
+            background: var(--timeline-ruler-bg);
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+        }
+        .ruler-mark {
+            width: 20px; min-width: 20px; height: 100%;
+            border-right: 1px solid var(--border-color);
+            font-size: 9px; opacity: 0.7;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .timeline-track { height: 35px; display: flex; position: relative; }
+        .frame-cell {
+            width: 20px; min-width: 20px; height: 100%;
+            border-right: 1px solid var(--border-color);
+            box-sizing: border-box; position: relative;
+            background: var(--frame-cell-bg);
+        }
+        .frame-cell.has-keyframe { background: var(--keyframe-bg); }
+        .frame-cell.has-keyframe::after {
+            content: ''; position: absolute; width: 8px; height: 8px;
+            background: var(--keyframe-dot); border-radius: 50%;
+            top: 50%; left: 50%; transform: translate(-50%, -50%);
+        }
+        .frame-cell.active-frame { border-left: 2px solid #ff3333; border-right: 2px solid #ff3333; }
+
+        #game-mode-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #2e7d32;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 200;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-mode-indicator">🎮 MODO JOGO ATIVO (Pressione ESC ou clique em Parar Jogo para sair)</div>
+
+<div id="anim-modal-overlay">
+    <div class="anim-modal">
+        <div class="anim-modal-header">🎬 Importar e Nomear Animações do Arquivo</div>
+        <div class="anim-modal-body" id="anim-modal-list-container"></div>
+        <div class="anim-modal-footer">
+            <button id="btn-modal-cancel" style="background: #c62828; color: white; border: none; padding: 6px 12px; border-radius: 4px;">Cancelar</button>
+            <button id="btn-modal-confirm" style="background: #2e7d32; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold;">Salvar na Memória</button>
+        </div>
+    </div>
+</div>
+
+<div class="floating-panel" id="preview-window-panel">
+    <div class="panel-header" onmousedown="startDrag(event, 'preview-window-panel')">
+        <span>🎬 Janela de Teste de Animação</span>
+        <button class="minimize-btn" onclick="toggleMinimize('preview-window-panel')">_</button>
+    </div>
+    <div class="panel-body">
+        <div class="control-block">
+            <label>Selecione Animação para Testar:</label>
+            <div style="display: flex; gap: 4px;">
+                <select id="preview-anim-select" style="flex:1;"><option value="">Nenhuma</option></select>
+                <button id="btn-preview-play" style="background: #2e7d32; color: #fff; border:none; border-radius:3px; padding:2px 8px;">Play</button>
+                <button id="btn-preview-stop" style="background: #c62828; color: #fff; border:none; border-radius:3px; padding:2px 8px;">Stop</button>
+            </div>
+        </div>
+        <div id="preview-canvas-container"></div>
+        <span class="status-text">Mini visualização isolada da animação selecionada.</span>
+    </div>
+</div>
+
+<div class="floating-panel" id="panel-file" style="top: 10px; left: 10px;">
+    <div class="panel-header" onmousedown="startDrag(event, 'panel-file')">
+        <span>📁 Arquivo e Projeto</span>
+        <button class="minimize-btn" onclick="toggleMinimize('panel-file')">_</button>
+    </div>
+    <div class="panel-body">
+        <div class="control-block">
+            <label>Carregar Modelo / Animação (FBX/GLTF/OBJ):</label>
+            <input type="file" id="file-input" accept=".obj, .fbx, .gltf, .glb">
+            <span id="model-status" class="status-text">Nenhum modelo carregado.</span>
+        </div>
+        <div class="control-block" style="margin-top: 4px;">
+            <label>Lista de Animações na Memória:</label>
+            <select id="animation-list">
+                <option value="">Nenhuma animação disponível</option>
+            </select>
+        </div>
+        <button id="btn-open-preview" style="background: var(--primary-blue); color: white; font-weight: bold; margin-top: 4px; padding: 5px;">🔍 Abrir Janela de Teste</button>
+        <button id="btn-toggle-game" style="background: #2e7d32; color: white; font-weight: bold; margin-top: 4px; padding: 6px;">🎮 Play / Testar Jogo</button>
+    </div>
+</div>
+
+<div class="floating-panel" id="panel-controls-config" style="top: 10px; left: 325px;">
+    <div class="panel-header" onmousedown="startDrag(event, 'panel-controls-config')">
+        <span>🎮 Teclas & Animações de Ação</span>
+        <button class="minimize-btn" onclick="toggleMinimize('panel-controls-config')">_</button>
+    </div>
+    <div class="panel-body">
+        <span class="status-text">Associe teclas e vincule animações:</span>
+        <div class="control-block" style="background: var(--timeline-bg); padding: 4px; border-radius: 4px;">
+            <label>Sem Tecla Pressionada (Idle):</label>
+            <select id="anim-idle"><option value="">(Sem Animação)</option></select>
+        </div>
+        <div class="control-block">
+            <label>Tecla Frente (W):</label>
+            <div style="display: flex; gap: 4px;">
+                <input type="text" id="key-forward" value="KeyW" style="width: 50px;">
+                <select id="anim-forward" style="flex:1;"><option value="">(Sem Animação)</option></select>
+            </div>
+        </div>
+        <div class="control-block">
+            <label>Tecla Trás (S):</label>
+            <div style="display: flex; gap: 4px;">
+                <input type="text" id="key-backward" value="KeyS" style="width: 50px;">
+                <select id="anim-backward" style="flex:1;"><option value="">(Sem Animação)</option></select>
+            </div>
+        </div>
+        <div class="control-block">
+            <label>Barra de Espaço (Pular/Ação):</label>
+            <div style="display: flex; gap: 4px;">
+                <input type="text" id="key-space" value="Space" style="width: 50px;" readonly>
+                <select id="anim-space" style="flex:1;"><option value="">(Sem Animação)</option></select>
+            </div>
+        </div>
+        <div class="control-block">
+            <label>Girar Esquerda (A):</label>
+            <input type="text" id="key-left" value="KeyA">
+        </div>
+        <div class="control-block">
+            <label>Girar Direita (D):</label>
+            <input type="text" id="key-right" value="KeyD">
+        </div>
+        <div class="slider-row" style="margin-top: 4px;">
+            <label>Velocidade de Passo:</label>
+            <input type="range" id="move-speed-slider" min="0.5" max="10.0" step="0.5" value="2.0">
+        </div>
+        <div class="slider-row">
+            <label>Velocidade de Giro:</label>
+            <input type="range" id="rot-speed-slider" min="0.01" max="0.1" step="0.01" value="0.04">
+        </div>
+    </div>
+</div>
+
+<div class="floating-panel" id="panel-render" style="top: 10px; left: 640px;">
+    <div class="panel-header" onmousedown="startDrag(event, 'panel-render')">
+        <span>👁️ Visualização e Chão 3D</span>
+        <button class="minimize-btn" onclick="toggleMinimize('panel-render')">_</button>
+    </div>
+    <div class="panel-body">
+        <div class="checkbox-row">
+            <input type="checkbox" id="chk-ground" checked>
+            <label for="chk-ground">Exibir Chão em Perspectiva</label>
+        </div>
+        <div class="checkbox-row">
+            <input type="checkbox" id="chk-skeleton" checked>
+            <label for="chk-skeleton">Exibir Esqueleto</label>
+        </div>
+        <div class="checkbox-row">
+            <input type="checkbox" id="chk-pickers" checked>
+            <label for="chk-pickers">Exibir Juntas Interativas</label>
+        </div>
+    </div>
+</div>
+
+<div id="flash-timeline-container">
+    <div class="timeline-controls">
+        <button id="btn-play-anim">► Play Animação</button>
+        <button id="btn-add-keyframe" style="background: #2e7d32;">F6 - Keyframe</button>
+        <button id="btn-clear-keyframe" style="background: #c62828;">F7 - Limpar</button>
+        <div class="timeline-field">
+            <label>FPS:</label><input type="number" id="fps-input" value="30" min="1" max="60">
+        </div>
+        <div class="timeline-field">
+            <label>Fim:</label><input type="number" id="total-frames-input" value="60" min="2" max="1000">
+        </div>
+        <span style="font-size: 11px; margin-left: auto;">
+            Frame: <strong id="current-frame-text" style="color: #4CAF50;">1</strong> / <span id="total-frames-text">60</span>
+        </span>
+    </div>
+    <div class="timeline-scroll-area" id="timeline-scroll">
+        <div class="timeline-ruler" id="timeline-ruler"></div>
+        <div class="timeline-track" id="timeline-track"></div>
+    </div>
+</div>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('.floating-panel').forEach(panel => {
+        const savedPos = localStorage.getItem(`panel_pos_${panel.id}`);
+        if (savedPos) {
+            const { top, left } = JSON.parse(savedPos);
+            panel.style.top = top;
+            panel.style.left = left;
+        }
+    });
+});
+
+function toggleMinimize(panelId) {
+    const panel = document.getElementById(panelId);
+    const body = panel.querySelector('.panel-body');
+    body.style.display = (body.style.display === 'none') ? 'flex' : 'none';
+}
+
+let activeDragPanel = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+
+function startDrag(e, panelId) {
+    if (e.target.tagName === 'BUTTON') return;
+    activeDragPanel = document.getElementById(panelId);
+    const rect = activeDragPanel.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', stopDrag);
+}
+
+function onDrag(e) {
+    if (!activeDragPanel) return;
+    const newLeft = e.clientX - dragOffsetX;
+    const newTop = e.clientY - dragOffsetY;
+    activeDragPanel.style.left = `${newLeft}px`;
+    activeDragPanel.style.top = `${newTop}px`;
+}
+
+function stopDrag() {
+    if (activeDragPanel) {
+        localStorage.setItem(`panel_pos_${activeDragPanel.id}`, JSON.stringify({
+            top: activeDragPanel.style.top,
+            left: activeDragPanel.style.left
+        }));
+    }
+    activeDragPanel = null;
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', stopDrag);
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf4f6f8);
+
+const groundGroup = new THREE.Group();
+const sizeGrid = 2000;
+const divisions = 40;
+const gridHelper = new THREE.GridHelper(sizeGrid, divisions, 0x1565c0, 0x90caf9);
+gridHelper.position.y = -0.02;
+groundGroup.add(gridHelper);
+
+const planeGeo = new THREE.PlaneGeometry(sizeGrid, sizeGrid, divisions, divisions);
+const planeMat = new THREE.MeshStandardMaterial({ color: 0xe3f2fd, roughness: 0.9, metalness: 0.1, wireframe: true, side: THREE.DoubleSide });
+const groundMesh = new THREE.Mesh(planeGeo, planeMat);
+groundMesh.rotation.x = -Math.PI / 2;
+groundGroup.add(groundMesh);
+scene.add(groundGroup);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 120), 0.1, 5000);
+camera.position.set(0, 100, 250);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight - 120);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.target.set(0, 90, 0);
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+dirLight.position.set(100, 200, 150);
+scene.add(dirLight);
+
+let isGameMode = false;
+const pressedKeys = {};
+let mixer = null;
+const clock = new THREE.Clock();
+
+const animationsList = []; 
+const animationActions = {}; 
+
+let tempLoadedAnims = [];
+let previewScene, previewCamera, previewRenderer, previewMixer = null;
+let previewModelClone = null;
+let activePreviewAction = null;
+let currentLoadedRootModel = null;
+
+// Salvar / Carregar mapeamento de teclas associadas no localStorage
+const mappingInputs = ['anim-idle', 'anim-forward', 'anim-backward', 'anim-space', 'key-forward', 'key-backward', 'key-space', 'key-left', 'key-right'];
+
+function saveKeyMappings() {
+    const data = {};
+    mappingInputs.forEach(id => {
+        data[id] = document.getElementById(id).value;
+    });
+    localStorage.setItem('game_key_mappings', JSON.stringify(data));
+}
+
+function loadKeyMappings() {
+    const saved = localStorage.getItem('game_key_mappings');
+    if (!saved) return;
+    try {
+        const data = JSON.parse(saved);
+        mappingInputs.forEach(id => {
+            if (data[id] !== undefined) {
+                document.getElementById(id).value = data[id];
+            }
+        });
+    } catch(e) { console.error(e); }
+}
+
+mappingInputs.forEach(id => {
+    document.getElementById(id).addEventListener('change', saveKeyMappings);
+    document.getElementById(id).addEventListener('input', saveKeyMappings);
+});
+
+window.addEventListener('keydown', (e) => {
+    if (e.target.tagName !== 'INPUT') {
+        pressedKeys[e.code] = true;
+        if (e.code === 'Escape' && isGameMode) toggleGameMode();
+    }
+});
+window.addEventListener('keyup', (e) => {
+    if (e.target.tagName !== 'INPUT') {
+        pressedKeys[e.code] = false;
+    }
+});
+
+let characterGroup = null;
+let skeletonHelper = null;
+let bonePickers = [];
+let boneMap = new Map();
+let allBones = [];
+
+const btnToggleGame = document.getElementById('btn-toggle-game');
+btnToggleGame.addEventListener('click', toggleGameMode);
+
+function toggleGameMode() {
+    isGameMode = !isGameMode;
+    const timeline = document.getElementById('flash-timeline-container');
+    const panels = document.querySelectorAll('.floating-panel');
+    const indicator = document.getElementById('game-mode-indicator');
+
+    if (isGameMode) {
+        timeline.style.transform = 'translateY(120px)';
+        panels.forEach(p => { if (p.id !== 'panel-file') p.style.display = 'none'; });
+        indicator.style.display = 'block';
+        btnToggleGame.innerText = '⏹ Parar Jogo';
+        btnToggleGame.style.background = '#c62828';
+        bonePickers.forEach(p => p.visible = false);
+    } else {
+        timeline.style.transform = 'translateY(0)';
+        panels.forEach(p => p.style.display = 'flex');
+        indicator.style.display = 'none';
+        btnToggleGame.innerText = '🎮 Play / Testar Jogo';
+        btnToggleGame.style.background = '#2e7d32';
+        bonePickers.forEach(p => p.visible = document.getElementById('chk-pickers').checked);
+    }
+}
+
+document.getElementById('file-input').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const fileName = file.name;
+    const ext = fileName.split('.').pop().toLowerCase();
+    document.getElementById('model-status').innerText = `Carregando: ${fileName}`;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        if (ext === 'obj') {
+            processLoadedModel(new OBJLoader().parse(e.target.result), fileName, []);
+        } else if (ext === 'fbx') {
+            new FBXLoader().load(URL.createObjectURL(file), (object) => {
+                processLoadedModel(object, fileName, object.animations);
+            });
+        } else if (ext === 'gltf' || ext === 'glb') {
+            new GLTFLoader().parse(e.target.result, '', (gltf) => {
+                processLoadedModel(gltf.scene, fileName, gltf.animations);
+            });
+        }
+    };
+    if (ext === 'obj') reader.readAsText(file);
+    else reader.readAsArrayBuffer(file);
+});
+
+function processLoadedModel(model, name, anims) {
+    if (characterGroup) scene.remove(characterGroup);
+    if (skeletonHelper) scene.remove(skeletonHelper);
+    bonePickers.forEach(p => scene.remove(p));
+    bonePickers = [];
+    boneMap.clear();
+    allBones = [];
+
+    characterGroup = model;
+    currentLoadedRootModel = model;
+    scene.add(characterGroup);
+    characterGroup.scale.setScalar(1);
+    allBones.push(characterGroup);
+
+    skeletonHelper = new THREE.SkeletonHelper(characterGroup);
+    scene.add(skeletonHelper);
+
+    characterGroup.traverse((child) => {
+        if (child.isBone && !allBones.includes(child)) {
+            allBones.push(child);
+            const picker = new THREE.Mesh(
+                new THREE.SphereGeometry(1.8, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xffcc00, depthTest: false, transparent: true, opacity: 0.8 })
+            );
+            scene.add(picker);
+            bonePickers.push(picker);
+            boneMap.set(picker, child);
+        }
+    });
+
+    mixer = new THREE.AnimationMixer(characterGroup);
+
+    if (anims && anims.length > 0) {
+        tempLoadedAnims = anims.map((clip, idx) => ({
+            clip: clip,
+            defaultName: `${name.split('.')[0]}_${clip.name || ('anim_' + idx)}`
+        }));
+        openAnimationModal();
+    }
+
+    document.getElementById('model-status').innerText = `Modelo: ${name}`;
+}
+
+function openAnimationModal() {
+    const container = document.getElementById('anim-modal-list-container');
+    container.innerHTML = '';
+
+    tempLoadedAnims.forEach((animObj, index) => {
+        const row = document.createElement('div');
+        row.className = 'anim-item-row';
+        row.innerHTML = `
+            <input type="checkbox" id="chk-anim-${index}" checked>
+            <div style="display:flex; flex-direction:column; flex:1; gap:2px;">
+                <span style="font-size:9px; color:var(--muted-text-color);">Clipe original: ${animObj.clip.name || index}</span>
+                <input type="text" id="name-anim-${index}" value="${animObj.defaultName}" placeholder="Nome para associação...">
+            </div>
+        `;
+        container.appendChild(row);
+    });
+
+    document.getElementById('anim-modal-overlay').style.display = 'flex';
+}
+
+document.getElementById('btn-modal-cancel').addEventListener('click', () => {
+    document.getElementById('anim-modal-overlay').style.display = 'none';
+});
+
+document.getElementById('btn-modal-confirm').addEventListener('click', () => {
+    tempLoadedAnims.forEach((animObj, index) => {
+        const chk = document.getElementById(`chk-anim-${index}`);
+        const nameInput = document.getElementById(`name-anim-${index}`);
+        if (chk && chk.checked) {
+            const customName = nameInput.value.trim() || animObj.defaultName;
+            
+            if (!animationActions[customName]) {
+                animationsList.push({ name: customName, clip: animObj.clip });
+                const action = mixer.clipAction(animObj.clip);
+                animationActions[customName] = action;
+            }
+        }
+    });
+
+    updateAnimationDropdowns();
+    saveKeyMappings(); // Atualiza a seleção e salva
+    document.getElementById('anim-modal-overlay').style.display = 'none';
+});
+
+function updateAnimationDropdowns() {
+    const selects = ['animation-list', 'anim-idle', 'anim-forward', 'anim-backward', 'anim-space', 'preview-anim-select'];
+    selects.forEach(id => {
+        const el = document.getElementById(id);
+        const currentVal = el.value;
+        el.innerHTML = id === 'animation-list' ? '' : '<option value="">(Nenhuma)</option>';
+        animationsList.forEach(item => {
+            el.add(new Option(item.name, item.name));
+        });
+        el.value = currentVal;
+    });
+}
+
+function initPreviewWindow() {
+    const container = document.getElementById('preview-canvas-container');
+    if (previewRenderer) return;
+
+    previewScene = new THREE.Scene();
+    previewScene.background = new THREE.Color(0xe2e8f0);
+
+    previewCamera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+    previewCamera.position.set(0, 50, 100);
+
+    previewRenderer = new THREE.WebGLRenderer({ antialias: true });
+    previewRenderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(previewRenderer.domElement);
+
+    previewScene.add(new THREE.AmbientLight(0xffffff, 1.5));
+    const pLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    pLight.position.set(50, 100, 50);
+    previewScene.add(pLight);
+}
+
+document.getElementById('btn-open-preview').addEventListener('click', () => {
+    const panel = document.getElementById('preview-window-panel');
+    panel.style.display = 'flex';
+    initPreviewWindow();
+    setupPreviewModel();
+});
+
+function setupPreviewModel() {
+    if (!currentLoadedRootModel) return;
+    if (previewModelClone) previewScene.remove(previewModelClone);
+
+    previewModelClone = currentLoadedRootModel.clone(true);
+    previewScene.add(previewModelClone);
+    previewMixer = new THREE.AnimationMixer(previewModelClone);
+}
+
+document.getElementById('btn-preview-play').addEventListener('click', () => {
+    const selectedAnim = document.getElementById('preview-anim-select').value;
+    if (!selectedAnim || !previewMixer) return;
+
+    if (activePreviewAction) activePreviewAction.stop();
+    const animData = animationsList.find(a => a.name === selectedAnim);
+    if (animData) {
+        activePreviewAction = previewMixer.clipAction(animData.clip);
+        activePreviewAction.reset().play();
+    }
+});
+
+document.getElementById('btn-preview-stop').addEventListener('click', () => {
+    if (activePreviewAction) {
+        activePreviewAction.stop();
+        activePreviewAction = null;
+    }
+});
+
+function updateHelpers() {
+    bonePickers.forEach(picker => {
+        const bone = boneMap.get(picker);
+        if (bone) bone.getWorldPosition(picker.position);
+    });
+}
+
+let activeCurrentActionName = null;
+
+function transitionToAction(newActionName, weight = 1.0, duration = 0.2) {
+    if (!mixer) return;
+    if (activeCurrentActionName === newActionName) return;
+
+    const currentAction = activeCurrentActionName ? animationActions[activeCurrentActionName] : null;
+    const nextAction = newActionName ? animationActions[newActionName] : null;
+
+    if (nextAction) {
+        nextAction.reset();
+        nextAction.setEffectiveWeight(weight);
+        if (currentAction) {
+            nextAction.crossFadeFrom(currentAction, duration, true);
+        }
+        nextAction.play();
+    } else if (currentAction) {
+        currentAction.fadeOut(duration);
+    }
+
+    activeCurrentActionName = newActionName;
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    
+    if (mixer) mixer.update(delta);
+    if (previewMixer) previewMixer.update(delta);
+    if (previewRenderer && previewScene && previewCamera) {
+        previewRenderer.render(previewScene, previewCamera);
+    }
+
+    if (characterGroup && isGameMode) {
+        const fKey = document.getElementById('key-forward').value || 'KeyW';
+        const bKey = document.getElementById('key-backward').value || 'KeyS';
+        const lKey = document.getElementById('key-left').value || 'KeyA';
+        const rKey = document.getElementById('key-right').value || 'KeyD';
+        const sKey = document.getElementById('key-space').value || 'Space';
+        
+        const moveSpeed = parseFloat(document.getElementById('move-speed-slider').value) || 2.0;
+        const rotSpeed = parseFloat(document.getElementById('rot-speed-slider').value) || 0.04;
+
+        const idleAnimName = document.getElementById('anim-idle').value;
+        const forwardAnimName = document.getElementById('anim-forward').value;
+        const backwardAnimName = document.getElementById('anim-backward').value;
+        const spaceAnimName = document.getElementById('anim-space').value;
+
+        let desiredAnim = idleAnimName;
+        let isMoving = false;
+
+        if (pressedKeys[fKey]) {
+            characterGroup.translateZ(moveSpeed);
+            if (forwardAnimName) desiredAnim = forwardAnimName;
+            isMoving = true;
+        } else if (pressedKeys[bKey]) {
+            characterGroup.translateZ(-moveSpeed);
+            if (backwardAnimName) desiredAnim = backwardAnimName;
+            isMoving = true;
+        } else if (pressedKeys[sKey]) {
+            if (spaceAnimName) desiredAnim = spaceAnimName;
+            isMoving = true;
+        }
+
+        if (pressedKeys[lKey]) characterGroup.rotation.y += rotSpeed;
+        if (pressedKeys[rKey]) characterGroup.rotation.y -= rotSpeed;
+
+        transitionToAction(desiredAnim, 1.0, 0.15);
+    }
+
+    updateHelpers();
+    renderer.render(scene, camera);
+}
+animate();
+
+// Carrega as configurações de teclas salvas ao iniciar
+loadKeyMappings();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / (window.innerHeight - 120);
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight - 120);
+});
+</script>
+</body>
+</html>
