@@ -564,6 +564,13 @@
                 <div class="coord-field"><label>Y</label><input type="number" id="rot-y" step="1"></div>
                 <div class="coord-field"><label>Z</label><input type="number" id="rot-z" step="1"></div>
             </div>
+
+            <div style="font-size: 10px; font-weight: bold; margin-top: 4px;">Escala:</div>
+            <div class="coord-group">
+                <div class="coord-field"><label>X</label><input type="number" id="scl-x" step="0.1"></div>
+                <div class="coord-field"><label>Y</label><input type="number" id="scl-y" step="0.1"></div>
+                <div class="coord-field"><label>Z</label><input type="number" id="scl-z" step="0.1"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -1722,6 +1729,9 @@ function updateUIInputs() {
     document.getElementById('rot-x').value = THREE.MathUtils.radToDeg(target.rotation.x).toFixed(0);
     document.getElementById('rot-y').value = THREE.MathUtils.radToDeg(target.rotation.y).toFixed(0);
     document.getElementById('rot-z').value = THREE.MathUtils.radToDeg(target.rotation.z).toFixed(0);
+    document.getElementById('scl-x').value = target.scale.x.toFixed(2);
+    document.getElementById('scl-y').value = target.scale.y.toFixed(2);
+    document.getElementById('scl-z').value = target.scale.z.toFixed(2);
 }
 
 ['pos-x', 'pos-y', 'pos-z'].forEach((id, index) => {
@@ -1757,6 +1767,24 @@ function updateUIInputs() {
             const delta = val - pivotObject.rotation[axis];
             pivotObject.rotation[axis] = val;
             selectedBones.forEach(b => b.rotation[axis] += delta);
+        }
+        saveKeyframe(currentFrame, false, false);
+    });
+});
+
+['scl-x', 'scl-y', 'scl-z'].forEach((id, index) => {
+    const inputEl = document.getElementById(id);
+    inputEl.addEventListener('focus', () => pushState());
+    inputEl.addEventListener('input', (e) => {
+        if (selectedBones.length === 0) return;
+        const val = parseFloat(e.target.value) || 1.0;
+        const axis = ['x', 'y', 'z'][index];
+
+        if (selectedBones.length === 1) {
+            selectedBones[0].scale[axis] = val;
+        } else {
+            pivotObject.scale[axis] = val;
+            selectedBones.forEach(b => b.scale[axis] = val);
         }
         saveKeyframe(currentFrame, false, false);
     });
