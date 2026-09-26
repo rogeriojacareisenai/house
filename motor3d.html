@@ -37,7 +37,7 @@
             border-radius: 8px;
             border: 1px solid var(--border-color);
             z-index: 100;
-            width: 300px;
+            width: 320px;
             box-shadow: 0 6px 16px rgba(0,0,0,0.4);
             backdrop-filter: blur(5px);
             display: flex;
@@ -74,7 +74,7 @@
             display: flex;
             flex-direction: column;
             gap: 6px;
-            max-height: calc(100vh - 200px);
+            max-height: calc(100vh - 180px);
             overflow-y: auto;
         }
 
@@ -288,14 +288,23 @@
 
 <div class="floating-panel" id="panel-file" style="top: 10px; left: 10px;">
     <div class="panel-header" onmousedown="startDrag(event, 'panel-file')">
-        <span>📁 Arquivo e Projeto</span>
+        <span>📁 Arquivos, Modelo e Textura</span>
         <button class="minimize-btn" onclick="toggleMinimize('panel-file')">_</button>
     </div>
     <div class="panel-body">
         <div class="control-block">
-            <label>Carregar Modelo / Animação (FBX/GLTF/OBJ):</label>
+            <label>1. Carregar Modelo 3D Base (FBX/GLTF/OBJ):</label>
             <input type="file" id="file-input" accept=".obj, .fbx, .gltf, .glb">
             <span id="model-status" class="status-text">Nenhum modelo carregado.</span>
+        </div>
+        <div class="control-block" style="margin-top: 2px;">
+            <label>2. Carregar Textura / Imagem (PNG/JPG):</label>
+            <input type="file" id="texture-input" accept=".png, .jpg, .jpeg">
+        </div>
+        <div class="control-block" style="margin-top: 2px;">
+            <label>3. Adicionar Múltiplas Animações (Array de Files):</label>
+            <input type="file" id="anim-files-input" accept=".fbx, .gltf, .glb" multiple>
+            <span class="status-text">Selecione um ou mais arquivos de animação separados.</span>
         </div>
         <div class="control-block" style="margin-top: 4px;">
             <label>Lista de Animações na Memória:</label>
@@ -308,7 +317,7 @@
     </div>
 </div>
 
-<div class="floating-panel" id="panel-controls-config" style="top: 10px; left: 325px;">
+<div class="floating-panel" id="panel-controls-config" style="top: 10px; left: 340px;">
     <div class="panel-header" onmousedown="startDrag(event, 'panel-controls-config')">
         <span>🎮 Teclas & Animações de Ação</span>
         <button class="minimize-btn" onclick="toggleMinimize('panel-controls-config')">_</button>
@@ -359,7 +368,7 @@
     </div>
 </div>
 
-<div class="floating-panel" id="panel-render" style="top: 10px; left: 640px;">
+<div class="floating-panel" id="panel-render" style="top: 10px; left: 675px;">
     <div class="panel-header" onmousedown="startDrag(event, 'panel-render')">
         <span>👁️ Visualização e Chão 3D</span>
         <button class="minimize-btn" onclick="toggleMinimize('panel-render')">_</button>
@@ -517,8 +526,8 @@ let previewScene, previewCamera, previewRenderer, previewMixer = null;
 let previewModelClone = null;
 let activePreviewAction = null;
 let currentLoadedRootModel = null;
+let currentAppliedTexture = null;
 
-// Salvar / Carregar mapeamento de teclas associadas no localStorage
 const mappingInputs = ['anim-idle', 'anim-forward', 'anim-backward', 'anim-space', 'key-forward', 'key-backward', 'key-space', 'key-left', 'key-right'];
 
 function saveKeyMappings() {
@@ -591,29 +600,111 @@ function toggleGameMode() {
     }
 }
 
+// 1. CARREGAMENTO DO MODELO 3D PRINCIPAL
 document.getElementById('file-input').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
     const fileName = file.name;
     const ext = fileName.split('.').pop().toLowerCase();
     document.getElementById('model-status').innerText = `Carregando: ${fileName}`;
+    const fileURL = URL.createObjectURL(file);
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        if (ext === 'obj') {
+    if (ext === 'obj') {
+        const reader = new FileReader();
+        reader.onload = (e) => {
             processLoadedModel(new OBJLoader().parse(e.target.result), fileName, []);
-        } else if (ext === 'fbx') {
-            new FBXLoader().load(URL.createObjectURL(file), (object) => {
-                processLoadedModel(object, fileName, object.animations);
+        };
+        reader.readAsText(file);
+    } else if (ext === 'fbx') {
+        new FBXLoader().load(fileURL, (object) => {
+            processLoadedModel(object, fileName, object.animations || []);
+        }, undefined, (error) => {
+            console.error('Erro ao carregar o FBX:', error);
+            document.getElementById('model-status').innerText = `Erro ao carregar FBX!`;
+        });
+    } else if (ext === 'gltf' || ext === 'glb') {
+        new GLTFLoader().load(fileURL, (gltf) => {
+            processLoadedModel(gltf.scene, fileName, gltf.animations || []);
+        }, undefined, (error) => {
+            console.error('Erro ao carregar GLTF:', error);
+            document.getElementById('model-status').innerText = `Erro ao carregar GLTF!`;
+        });
+    }
+});
+
+// 2. CARREGAMENTO DA TEXTURA / IMAGEM
+document.getElementById('texture-input').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file || !characterGroup) return;
+    
+    const textureURL = URL.createObjectURL(file);
+    const textureLoader = new THREE.TextureLoader();
+    textureLoader.load(textureURL, (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        currentAppliedTexture = texture;
+        
+        // Aplicar a textura em todos os meshes do modelo carregado
+        characterGroup.traverse((child) => {
+            if (child.isMesh) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(mat => {
+                        mat.map = texture;
+                        mat.needsUpdate = true;
+                    });
+                } else if (child.material) {
+                    child.material.map = texture;
+                    child.material.needsUpdate = true;
+                }
+            }
+        });
+        console.log("Textura aplicada com sucesso ao modelo!");
+    });
+});
+
+// 3. CARREGAMENTO DE MÚLTIPLAS ANIMAÇÕES SEPARADAS (ARRAY DE FILES)
+document.getElementById('anim-files-input').addEventListener('change', (event) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    tempLoadedAnims = [];
+    let processedCount = 0;
+
+    Array.from(files).forEach((file) => {
+        const fileName = file.name;
+        const ext = fileName.split('.').pop().toLowerCase();
+        const fileURL = URL.createObjectURL(file);
+
+        if (ext === 'fbx') {
+            new FBXLoader().load(fileURL, (object) => {
+                if (object.animations && object.animations.length > 0) {
+                    object.animations.forEach((clip, idx) => {
+                        tempLoadedAnims.push({
+                            clip: clip,
+                            defaultName: `${fileName.split('.')[0]}_${clip.name || ('anim_' + idx)}`
+                        });
+                    });
+                }
+                processedCount++;
+                if (processedCount === files.length) openAnimationModal();
             });
         } else if (ext === 'gltf' || ext === 'glb') {
-            new GLTFLoader().parse(e.target.result, '', (gltf) => {
-                processLoadedModel(gltf.scene, fileName, gltf.animations);
+            new GLTFLoader().load(fileURL, (gltf) => {
+                if (gltf.animations && gltf.animations.length > 0) {
+                    gltf.animations.forEach((clip, idx) => {
+                        tempLoadedAnims.push({
+                            clip: clip,
+                            defaultName: `${fileName.split('.')[0]}_${clip.name || ('anim_' + idx)}`
+                        });
+                    });
+                }
+                processedCount++;
+                if (processedCount === files.length) openAnimationModal();
             });
+        } else {
+            processedCount++;
+            if (processedCount === files.length && tempLoadedAnims.length > 0) openAnimationModal();
         }
-    };
-    if (ext === 'obj') reader.readAsText(file);
-    else reader.readAsArrayBuffer(file);
+    });
 });
 
 function processLoadedModel(model, name, anims) {
@@ -629,6 +720,16 @@ function processLoadedModel(model, name, anims) {
     scene.add(characterGroup);
     characterGroup.scale.setScalar(1);
     allBones.push(characterGroup);
+
+    // Se já houver textura carregada, reaplicá-la ao novo modelo
+    if (currentAppliedTexture) {
+        characterGroup.traverse((child) => {
+            if (child.isMesh && child.material) {
+                child.material.map = currentAppliedTexture;
+                child.material.needsUpdate = true;
+            }
+        });
+    }
 
     skeletonHelper = new THREE.SkeletonHelper(characterGroup);
     scene.add(skeletonHelper);
@@ -648,15 +749,22 @@ function processLoadedModel(model, name, anims) {
 
     mixer = new THREE.AnimationMixer(characterGroup);
 
+    animationsList.length = 0;
+    for (let key in animationActions) {
+        delete animationActions[key];
+    }
+
     if (anims && anims.length > 0) {
         tempLoadedAnims = anims.map((clip, idx) => ({
             clip: clip,
             defaultName: `${name.split('.')[0]}_${clip.name || ('anim_' + idx)}`
         }));
         openAnimationModal();
+    } else {
+        tempLoadedAnims = [];
+        updateAnimationDropdowns();
+        document.getElementById('model-status').innerText = `Modelo: ${name}`;
     }
-
-    document.getElementById('model-status').innerText = `Modelo: ${name}`;
 }
 
 function openAnimationModal() {
@@ -699,8 +807,9 @@ document.getElementById('btn-modal-confirm').addEventListener('click', () => {
     });
 
     updateAnimationDropdowns();
-    saveKeyMappings(); // Atualiza a seleção e salva
+    saveKeyMappings();
     document.getElementById('anim-modal-overlay').style.display = 'none';
+    document.getElementById('model-status').innerText = `Modelo configurado com ${animationsList.length} animações.`;
 });
 
 function updateAnimationDropdowns() {
@@ -853,7 +962,6 @@ function animate() {
 }
 animate();
 
-// Carrega as configurações de teclas salvas ao iniciar
 loadKeyMappings();
 
 window.addEventListener('resize', () => {
