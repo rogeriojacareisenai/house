@@ -91,7 +91,8 @@
         
         .slider-row { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
 
-        #anim-modal-overlay {
+        /* Estilos dos Modais (Animação e Escala) */
+        #anim-modal-overlay, #scale-modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100vw; height: 100vh;
             background: rgba(0, 0, 0, 0.6);
@@ -101,9 +102,9 @@
             z-index: 1000;
             backdrop-filter: blur(3px);
         }
-        .anim-modal {
+        .anim-modal, .scale-modal {
             background: #ffffff;
-            width: 450px;
+            width: 400px;
             max-height: 80vh;
             border-radius: 8px;
             box-shadow: 0 10px 25px rgba(0,0,0,0.5);
@@ -111,31 +112,33 @@
             flex-direction: column;
             overflow: hidden;
         }
-        .anim-modal-header {
+        .anim-modal-header, .scale-modal-header {
             background: var(--primary-blue);
             color: #fff;
             padding: 12px;
             font-weight: bold;
             font-size: 13px;
         }
-        .anim-modal-body {
-            padding: 12px;
+        .anim-modal-body, .scale-modal-body {
+            padding: 16px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
             flex: 1;
         }
-        .anim-item-row {
+        .scale-input-row {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 8px;
-            background: var(--bg-color);
-            padding: 8px;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
+            font-size: 12px;
         }
-        .anim-modal-footer {
+        .scale-input-row input {
+            width: 100px;
+            padding: 4px;
+        }
+        .anim-modal-footer, .scale-modal-footer {
             padding: 10px 12px;
             background: var(--timeline-controls-bg);
             display: flex;
@@ -256,6 +259,7 @@
 
 <div id="game-mode-indicator">🎮 MODO JOGO ATIVO (Pressione ESC ou clique em Parar Jogo para sair)</div>
 
+<!-- Modal para Importação de Animações -->
 <div id="anim-modal-overlay">
     <div class="anim-modal">
         <div class="anim-modal-header">🎬 Importar e Nomear Animações do Arquivo</div>
@@ -263,6 +267,36 @@
         <div class="anim-modal-footer">
             <button id="btn-modal-cancel" style="background: #c62828; color: white; border: none; padding: 6px 12px; border-radius: 4px;">Cancelar</button>
             <button id="btn-modal-confirm" style="background: #2e7d32; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold;">Salvar na Memória</button>
+        </div>
+    </div>
+</div>
+
+<!-- Janela Suspensa (Modal) para Redefinir Escala do Modelo -->
+<div id="scale-modal-overlay">
+    <div class="scale-modal">
+        <div class="scale-modal-header">📐 Redefinir Escala do Modelo</div>
+        <div class="scale-modal-body">
+            <span class="status-text">Defina diretamente a escala do modelo nos eixos X, Y e Z:</span>
+            <div class="scale-input-row">
+                <label for="input-scale-x">Escala X:</label>
+                <input type="number" id="input-scale-x" value="1.0" step="0.1" min="0.01">
+            </div>
+            <div class="scale-input-row">
+                <label for="input-scale-y">Escala Y:</label>
+                <input type="number" id="input-scale-y" value="1.0" step="0.1" min="0.01">
+            </div>
+            <div class="scale-input-row">
+                <label for="input-scale-z">Escala Z:</label>
+                <input type="number" id="input-scale-z" value="1.0" step="0.1" min="0.01">
+            </div>
+            <div class="checkbox-row" style="margin-top: 4px;">
+                <input type="checkbox" id="chk-uniform-scale" checked>
+                <label for="chk-uniform-scale">Escala Uniforme (Manter Proporção)</label>
+            </div>
+        </div>
+        <div class="scale-modal-footer">
+            <button id="btn-scale-cancel" style="background: #c62828; color: white; border: none; padding: 6px 12px; border-radius: 4px;">Cancelar</button>
+            <button id="btn-scale-apply" style="background: #2e7d32; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold;">Aplicar Escala</button>
         </div>
     </div>
 </div>
@@ -297,6 +331,7 @@
             <input type="file" id="file-input" accept=".obj, .fbx, .gltf, .glb">
             <span id="model-status" class="status-text">Nenhum modelo carregado.</span>
         </div>
+        <button id="btn-open-scale-modal" style="background: #388e3c; color: white; font-weight: bold; margin-top: 2px; padding: 5px;">📐 Redefinir Escala do Modelo</button>
         <div class="control-block" style="margin-top: 2px;">
             <label>2. Carregar Textura / Imagem (PNG/JPG):</label>
             <input type="file" id="texture-input" accept=".png, .jpg, .jpeg">
@@ -600,6 +635,60 @@ function toggleGameMode() {
     }
 }
 
+// LÓGICA DA JANELA SUSPENSA DE ESCALA DO MODELO
+const btnOpenScaleModal = document.getElementById('btn-open-scale-modal');
+const scaleModalOverlay = document.getElementById('scale-modal-overlay');
+const btnScaleCancel = document.getElementById('btn-scale-cancel');
+const btnScaleApply = document.getElementById('btn-scale-apply');
+const inputScaleX = document.getElementById('input-scale-x');
+const inputScaleY = document.getElementById('input-scale-y');
+const inputScaleZ = document.getElementById('input-scale-z');
+const chkUniformScale = document.getElementById('chk-uniform-scale');
+
+btnOpenScaleModal.addEventListener('click', () => {
+    if (!characterGroup) {
+        alert("Carregue um modelo 3D antes de redefinir a escala!");
+        return;
+    }
+    inputScaleX.value = characterGroup.scale.x;
+    inputScaleY.value = characterGroup.scale.y;
+    inputScaleZ.value = characterGroup.scale.z;
+    scaleModalOverlay.style.display = 'flex';
+});
+
+btnScaleCancel.addEventListener('click', () => {
+    scaleModalOverlay.style.display = 'none';
+});
+
+// Sincronizar escalas caso a opção Uniforme esteja marcada
+inputScaleX.addEventListener('input', () => {
+    if (chkUniformScale.checked) {
+        inputScaleY.value = inputScaleX.value;
+        inputScaleZ.value = inputScaleX.value;
+    }
+});
+
+btnScaleApply.addEventListener('click', () => {
+    if (!characterGroup) return;
+
+    const sx = parseFloat(inputScaleX.value);
+    const sy = parseFloat(inputScaleY.value);
+    const sz = parseFloat(inputScaleZ.value);
+
+    if (!isNaN(sx) && !isNaN(sy) && !isNaN(sz) && sx > 0 && sy > 0 && sz > 0) {
+        characterGroup.scale.set(sx, sy, sz);
+
+        if (skeletonHelper) {
+            skeletonHelper.update();
+        }
+
+        scaleModalOverlay.style.display = 'none';
+        console.log(`Nova escala do modelo aplicada: X=${sx}, Y=${sy}, Z=${sz}`);
+    } else {
+        alert("Insira valores válidos e maiores que zero para a escala!");
+    }
+});
+
 // 1. CARREGAMENTO DO MODELO 3D PRINCIPAL
 document.getElementById('file-input').addEventListener('change', (event) => {
     const file = event.target.files[0];
@@ -643,7 +732,6 @@ document.getElementById('texture-input').addEventListener('change', (event) => {
         texture.colorSpace = THREE.SRGBColorSpace;
         currentAppliedTexture = texture;
         
-        // Aplicar a textura em todos os meshes do modelo carregado
         characterGroup.traverse((child) => {
             if (child.isMesh) {
                 if (Array.isArray(child.material)) {
@@ -721,7 +809,6 @@ function processLoadedModel(model, name, anims) {
     characterGroup.scale.setScalar(1);
     allBones.push(characterGroup);
 
-    // Se já houver textura carregada, reaplicá-la ao novo modelo
     if (currentAppliedTexture) {
         characterGroup.traverse((child) => {
             if (child.isMesh && child.material) {
