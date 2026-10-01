@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NicEman Studio - Jogo 3D com Cidade e Suporte a FBX</title>
+    <style>
+        :root {
+            --bg-color: #f4f6f8;
+            --panel-bg: rgba(255, 255, 255, 0.97);
+            --text-color: #1f2937;
+            --muted-text-color: #5f6b7a;
+            --border-color: #c7ced6;
+            --timeline-bg: #e9edf2;
+            --timeline-controls-bg: #dfe5eb;
+            --timeline-ruler-bg: #eef2f6;
+            --timeline-track-bg: #ffffff;
+            --frame-cell-bg: #f8fafc;
+            --keyframe-bg: #b9c4d0;
+            --keyframe-dot: #17202a;
+            --input-bg: #ffffff;
+            --primary-blue: #1565c0;
+            --primary-blue-dark: #0d47a1;
+            --primary-blue-light: #e3f2fd;
+        }
+
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background-color: var(--bg-color); color: var(--text-color); user-select: none; }
+        
+        button, input, select { cursor: pointer; padding: 4px; }
+        .checkbox-row { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+        .status-text { font-size: 10px; color: var(--muted-text-color); }
+
+        .floating-panel {
+            position: absolute;
+            background: var(--panel-bg);
+            color: var(--text-color);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            z-index: 100;
+            width: 320px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel-header {
+            background: var(--primary-blue);
+            color: #ffffff;
+            padding: 8px 10px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: move;
+            border-top-left-radius: 7px;
+            border-top-right-radius: 7px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header button.minimize-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-weight: bold;
+            font-size: 12px;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+
+        .panel-body {
+            padding: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            max-height: calc(100vh - 180px);
+            overflow-y: auto;
+        }
+
+        .control-block { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+
+        select, input[type="file"], input[type="number"], input[type="text"] {
+            font-size: 11px;
+            background: var(--input-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            padding: 2px 4px;
+        }
+        
+        .slider-row { display: flex; flex-direction: column; gap: 2px; font-size: 11px; }
+
+        #anim-modal-overlay, #scale-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(3px);
+        }
+        .anim-modal, .scale-modal {
+            background: #ffffff;
+            width: 400px;
+            max-height: 80vh;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .anim-modal-header, .scale-modal-header {
+            background: var(--primary-blue);
+            color: #fff;
+            padding: 12px;
+            font-weight: bold;
+            font-size: 13px;
+        }
+        .anim-modal-body, .scale-modal-body {
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex: 1;
+        }
+        .scale-input-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 12px;
+        }
+        .scale-input-row input {
+            width: 100px;
+            padding: 4px;
+        }
+        .anim-modal-footer, .scale-modal-footer {
+            padding: 10px 12px;
+            background: var(--timeline-controls-bg);
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        #preview-window-panel {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            width: 280px;
+            z-index: 150;
+            display: none;
+        }
+        #preview-canvas-container {
+            width: 100%;
+            height: 180px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #flash-timeline-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 120px;
+            background: var(--timeline-bg);
+            border-top: 2px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+        
+        .timeline-controls {
+            height: 32px;
+            background: var(--timeline-controls-bg);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .timeline-controls button {
+            background: var(--primary-blue);
+            color: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 3px;
+            font-size: 11px;
+            padding: 3px 8px;
+        }
+        .timeline-field {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            border-left: 1px solid var(--border-color);
+            padding-left: 8px;
+        }
+        .timeline-field input { width: 38px; text-align: center; }
+
+        #game-mode-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #2e7d32;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 13px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 200;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-mode-indicator">🎮 MODO JOGO ATIVO (Use as SETAS DIRECIONAIS para andar | ESC para sair)</div>
+
+<!-- Modal para Importação de Animações -->
+<div id="anim-modal-overlay">
+    <div class="anim-modal">
+        <div class="anim-modal-header">🎬 Importar e Nomear Animações do Arquivo</div>
+        <div class="anim-modal-body" id="anim-modal-list-container"></div>
+        <div class="anim-modal-footer">
+            <button id="btn-modal-cancel" style="background: #c62828; color: white; border: none; padding: 6px 12px; border-radius: 4px;">Cancelar</button>
+            <button id="btn-modal-confirm" style="background: #2e7d32; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold;">Salvar na Memória</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Redefinir Escala do Modelo -->
+<div id="scale-modal-overlay">
+    <div class="scale-modal">
+        <div class="scale-modal-header">📐 Redefinir Escala do Modelo</div>
+        <div class="scale-modal-body">
+            <span class="status-text">Defina diretamente a escala do modelo nos eixos X, Y e Z:</span>
+            <div class="scale-input-row">
+                <label for="input-scale-x">Escala X:</label>
+                <input type="number" id="input-scale-x" value="1.0" step="0.1" min="0.01">
+            </div>
+            <div class="scale-input-row">
+                <label for="input-scale-y">Escala Y:</label>
+                <input type="number" id="input-scale-y" value="1.0" step="0.1" min="0.01">
+            </div>
+            <div class="scale-input-row">
+                <label for="input-scale-z">Escala Z:</label>
+                <input type="number" id="input-scale-z" value="1.0" step="0.1" min="0.01">
+            </div>
+            <div class="checkbox-row" style="margin-top: 4px;">
+                <input type="checkbox" id="chk-uniform-scale" checked>
+                <label for="chk-uniform-scale">Escala Uniforme (Manter Proporção)</label>
+            </div>
+        </div>
+        <div class="scale-modal-footer">
+            <button id="btn-scale-cancel" style="background: #c62828; color: white; border: none; padding: 6px 12px; border-radius: 4px;">Cancelar</button>
+            <button id="btn-scale-apply" style="background: #2e7d32; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold;">Aplicar Escala</button>
+        </div>
+    </div>
+</div>
+
+<div class="floating-panel" id="preview-window-panel">
+    <div class="panel-header" onmousedown="startDrag(event, 'preview-window-panel')">
+        <span>🎬 Janela de Teste de Animação</span>
+        <button class="minimize-btn" onclick="toggleMinimize('preview-window-panel')">_</button>
+    </div>
+    <div class="panel-body">
+        <div class="control-block">
+            <label>Selecione Animação para Testar:</label>
+            <div style="display: flex; gap: 4px;">
+                <select id="preview-anim-select" style="flex:1;"><option value="">Nenhuma</option></select>
+                <button id="btn-preview-play" style="background: #2e7d32; color: #fff; border:none; border-radius:3px; padding:2px 8px;">Play</button>
+                <button id="btn-preview-stop" style="background: #c62828; color: #fff; border:none; border-radius:3px; padding:2px 8px;">Stop</button>
+            </div>
+        </div>
+        <div id="preview-canvas-container"></div>
+        <span class="status-text">Mini visualização isolada da animação selecionada.</span>
+    </div>
+</div>
+
+<div class="floating-panel" id="panel-file" style="top: 10px; left: 10px;">
+    <div class="panel-header" onmousedown="startDrag(event, 'panel-file')">
+        <span>📁 Arquivos, Modelo e Textura</span>
+        <button class="minimize-btn" onclick="toggleMinimize('panel-file')">_</button>
+    </div>
+    <div class="panel-body">
+        <div class="control-block">
+            <label>1. Carregar Modelo 3D Personagem (FBX/GLTF/OBJ):</label>
+            <input type="file" id="file-input" accept=".obj, .fbx, .gltf, .glb">
+            <span id="model-status" class="status-text">Nenhum modelo carregado. (Um cubo será usado como padrão se nenhum FBX for carregado)</span>
+        </div>
+        <button id="btn-open-scale-modal" style="background: #388e3c; color: white; font-weight: bold; margin-top: 2px; padding: 5px;">📐 Redefinir Escala do Modelo</button>
+        <div class="control-block" style="margin-top: 2px;">
+            <label>2. Carregar Textura / Imagem (PNG/JPG):</label>
+            <input type="file" id="texture-input" accept=".png, .jpg, .jpeg">
+        </div>
+        <div class="control-block" style="margin-top: 2px;">
+            <label>3. Adicionar Animações FBX:</label>
+            <input type="file" id="anim-files-input" accept=".fbx, .gltf, .glb" multiple>
+        </div>
+        <div class="control-block" style="margin-top: 4px;">
+            <label>Lista de Animações na Memória:</label>
+            <select id="animation-list">
+                <option value="">Nenhuma animação disponível</option>
+            </select>
+        </div>
+        <button id="btn-open-preview" style="background: var(--primary-blue); color: white; font-weight: bold; margin-top: 4px; padding: 5px;">🔍 Abrir Janela de Teste</button>
+        <button id="btn-toggle-game" style="background: #2e7d32; color: white; font-weight: bold; margin-top: 4px; padding: 6px;">🎮 Play / Testar Jogo</button>
+    </div>
+</div>
+
+<div class="floating-panel" id="panel-controls-config" style="top: 10px; left: 340px;">
+    <div class="panel-header" onmousedown="startDrag(event, 'panel-controls-config')">
+        <span>🎮 Controles & Mapeamento de Teclas</span>
+        <button class="minimize-btn" onclick="toggleMinimize('panel-controls-config')">_</button>
+    </div>
+    <div class="panel-body">
+        <span class="status-text">Controles configurados para as SETAS DO TECLADO:</span>
+        <div class="control-block" style="background: var(--timeline-bg); padding: 4px; border-radius: 4px;">
+            <label>Sem Tecla Pressionada (Idle):</label>
+            <select id="anim-idle"><option value="">(Sem Animação)</option></select>
+        </div>
+        <div class="control-block">
+            <label>Mover para Frente (Seta Para Cima):</label>
+            <div style="display: flex; gap: 4px;">
+                <input type="text" id="key-forward" value="ArrowUp" readonly style="width: 70px; background: #eee;">
+                <select id="anim-forward" style="flex:1;"><option value="">(Sem Animação)</option></select>
+            </div>
+        </div>
+        <div class="control-block">
+            <label>Mover para Trás (Seta Para Baixo):</label>
+            <div style="display: flex; gap: 4px;">
+                <input type="text" id="key-backward" value="ArrowDown" readonly style="width: 70px; background: #eee;">
+                <select id="anim-backward" style="flex:1;"><option value="">(Sem Animação)</option></select>
+            </div>
+        </div>
+        <div class="control-block">
+            <label>Girar Esquerda (Seta Para Esquerda):</label>
+            <input type="text" id="key-left" value="ArrowLeft" readonly style="background: #eee;">
+        </div>
+        <div class="control-block">
+            <label>Girar Direita (Seta Para Direita):</label>
+            <input type="text" id="key-right" value="ArrowRight" readonly style="background: #eee;">
+        </div>
+        <div class="control-block">
+            <label>Ação / Pulo (Espaço):</label>
+            <div style="display: flex; gap: 4px;">
+                <input type="text" id="key-space" value="Space" readonly style="width: 70px; background: #eee;">
+                <select id="anim-space" style="flex:1;"><option value="">(Sem Animação)</option></select>
+            </div>
+        </div>
+        <div class="slider-row" style="margin-top: 4px;">
+            <label>Velocidade de Movimento:</label>
+            <input type="range" id="move-speed-slider" min="0.5" max="10.0" step="0.5" value="3.0">
+        </div>
+        <div class="slider-row">
+            <label>Velocidade de Rotação:</label>
+            <input type="range" id="rot-speed-slider" min="0.01" max="0.1" step="0.01" value="0.04">
+        </div>
+    </div>
+</div>
+
+<div class="floating-panel" id="panel-render" style="top: 10px; left: 675px;">
+    <div class="panel-header" onmousedown="startDrag(event, 'panel-render')">
+        <span>👁️ Visualização e Configurações</span>
+        <button class="minimize-btn" onclick="toggleMinimize('panel-render')">_</button>
+    </div>
+    <div class="panel-body">
+        <div class="checkbox-row">
+            <input type="checkbox" id="chk-skeleton" checked>
+            <label for="chk-skeleton">Exibir Esqueleto / Helpers</label>
+        </div>
+        <div class="checkbox-row">
+            <input type="checkbox" id="chk-pickers" checked>
+            <label for="chk-pickers">Exibir Juntas Interativas</label>
+        </div>
+        <div class="checkbox-row">
+            <input type="checkbox" id="chk-camera-follow" checked>
+            <label for="chk-camera-follow">Câmera Seguir o Personagem</label>
+        </div>
+    </div>
+</div>
+
+<div id="flash-timeline-container">
+    <div class="timeline-controls">
+        <button id="btn-play-anim">► Play Animação</button>
+        <div class="timeline-field">
+            <label>FPS:</label><input type="number" id="fps-input" value="30" min="1" max="60">
+        </div>
+        <span style="font-size: 11px; margin-left: auto; padding-right: 15px;">
+            Controles: Use <b>SETAS DIRECIONAIS</b> para andar pela cidade e girar o personagem.
+        </span>
+    </div>
+</div>
+
+<script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+</script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    document.querySelectorAll('.floating-panel').forEach(panel => {
+        const savedPos = localStorage.getItem(`panel_pos_${panel.id}`);
+        if (savedPos) {
+            const { top, left } = JSON.parse(savedPos);
+            panel.style.top = top;
+            panel.style.left = left;
+        }
+    });
+});
+
+function toggleMinimize(panelId) {
+    const panel = document.getElementById(panelId);
+    const body = panel.querySelector('.panel-body');
+    body.style.display = (body.style.display === 'none') ? 'flex' : 'none';
+}
+
+let activeDragPanel = null;
+let dragOffsetX = 0;
+let dragOffsetY = 0;
+
+function startDrag(e, panelId) {
+    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    activeDragPanel = document.getElementById(panelId);
+    const rect = activeDragPanel.getBoundingClientRect();
+    dragOffsetX = e.clientX - rect.left;
+    dragOffsetY = e.clientY - rect.top;
+    
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', stopDrag);
+}
+
+function onDrag(e) {
+    if (!activeDragPanel) return;
+    const newLeft = e.clientX - dragOffsetX;
+    const newTop = e.clientY - dragOffsetY;
+    activeDragPanel.style.left = `${newLeft}px`;
+    activeDragPanel.style.top = `${newTop}px`;
+}
+
+function stopDrag() {
+    if (activeDragPanel) {
+        localStorage.setItem(`panel_pos_${activeDragPanel.id}`, JSON.stringify({
+            top: activeDragPanel.style.top,
+            left: activeDragPanel.style.left
+        }));
+    }
+    activeDragPanel = null;
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', stopDrag);
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// 1. CENA E ILUMINAÇÃO
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb); // Céu azul
+scene.fog = new THREE.FogExp2(0x87ceeb, 0.001);
+
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 120), 0.1, 5000);
+camera.position.set(0, 30, 60);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, alpha: true });
+renderer.setSize(window.innerWidth, window.innerHeight - 120);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const orbit = new OrbitControls(camera, renderer.domElement);
+orbit.target.set(0, 10, 0);
+
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+scene.add(ambientLight);
+
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+dirLight.position.set(200, 400, 200);
+dirLight.castShadow = true;
+dirLight.shadow.mapSize.width = 2048;
+dirLight.shadow.mapSize.height = 2048;
+dirLight.shadow.camera.near = 0.5;
+dirLight.shadow.camera.far = 1500;
+const d = 500;
+dirLight.shadow.camera.left = -d;
+dirLight.shadow.camera.right = d;
+dirLight.shadow.camera.top = d;
+dirLight.shadow.camera.bottom = -d;
+scene.add(dirLight);
+
+// 2. CONSTRUÇÃO DA CIDADE COM FIGURAS GEOMÉTRICAS E ESTRADAS
+function buildProceduralCity() {
+    const cityGroup = new THREE.Group();
+
+    // Terreno/Grama Principal (Plano)
+    const groundGeo = new THREE.PlaneGeometry(1200, 1200);
+    const groundMat = new THREE.MeshStandardMaterial({ color: 0x557a2b, roughness: 0.9 });
+    const ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    cityGroup.add(ground);
+
+    // Mapeamento de Estradas Asfaltadas (Cruzamentos e Malha)
+    const roadMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
+    const stripeMat = new THREE.MeshBasicMaterial({ color: 0xffeb3b });
+
+    function createRoad(width, length, x, z, isRotated = false) {
+        const roadGeo = new THREE.PlaneGeometry(width, length);
+        const road = new THREE.Mesh(roadGeo, roadMat);
+        road.rotation.x = -Math.PI / 2;
+        if (isRotated) road.rotation.z = Math.PI / 2;
+        road.position.set(x, 0.1, z);
+        road.receiveShadow = true;
+        cityGroup.add(road);
+
+        // Faixas amarelas da estrada
+        const numStripes = Math.floor(length / 20);
+        for (let i = 0; i < numStripes; i++) {
+            const stripeGeo = new THREE.PlaneGeometry(isRotated ? 10 : 1.5, isRotated ? 1.5 : 10);
+            const stripe = new THREE.Mesh(stripeGeo, stripeMat);
+            stripe.rotation.x = -Math.PI / 2;
+            const offset = -length / 2 + (i * 20) + 10;
+            if (isRotated) {
+                stripe.position.set(x + offset, 0.2, z);
+            } else {
+                stripe.position.set(x, 0.2, z + offset);
+            }
+            cityGroup.add(stripe);
+        }
+    }
+
+    // Malha de Estradas Principais
+    createRoad(40, 1000, 0, 0, false);
+    createRoad(40, 1000, 0, 0, true);
+    createRoad(30, 1000, -250, 0, false);
+    createRoad(30, 1000, 250, 0, false);
+    createRoad(30, 1000, 0, -250, true);
+    createRoad(30, 1000, 0, 250, true);
+
+    // Blocos da Cidade / Edifícios Geométricos
+    const buildingColors = [0x1e88e5, 0xe53935, 0x43a047, 0xfdd835, 0x8e24aa, 0x00acc1, 0xd81b60];
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x81d4fa, roughness: 0.2, metalness: 0.8 });
+
+    function createBuildingBlock(centerX, centerZ) {
+        // Calçada do Bloco (Cilindro/Paralelepípedo)
+        const sidewalkGeo = new THREE.BoxGeometry(180, 2, 180);
+        const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.7 });
+        const sidewalk = new THREE.Mesh(sidewalkGeo, sidewalkMat);
+        sidewalk.position.set(centerX, 1, centerZ);
+        sidewalk.receiveShadow = true;
+        cityGroup.add(sidewalk);
+
+        // Prédios dentro do bloco
+        const positions = [
+            [-50, -50], [50, -50], [-50, 50], [50, 50]
+        ];
+
+        positions.forEach(([dx, dz]) => {
+            const h = 40 + Math.random() * 120;
+            const w = 30 + Math.random() * 20;
+            const d = 30 + Math.random() * 20;
+            const color = buildingColors[Math.floor(Math.random() * buildingColors.length)];
+
+            // Prédio Principal (Cubo/Paralelepípedo)
+            const bGeo = new THREE.BoxGeometry(w, h, d);
+            const bMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 });
+            const building = new THREE.Mesh(bGeo, bMat);
+            building.position.set(centerX + dx, h / 2 + 2, centerZ + dz);
+            building.castShadow = true;
+            building.receiveShadow = true;
+            cityGroup.add(building);
+
+            // Detalhes Geométricos: Janelas (Planos) ou Telhados (Pirâmides/Cones/Esferas)
+            if (Math.random() > 0.5) {
+                // Telhado em forma de Pirâmide (Cone com 4 lados)
+                const roofGeo = new THREE.ConeGeometry(Math.max(w, d) * 0.7, 20, 4);
+                const roofMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+                const roof = new THREE.Mesh(roofGeo, roofMat);
+                roof.position.set(centerX + dx, h + 12, centerZ + dz);
+                roof.rotation.y = Math.PI / 4;
+                roof.castShadow = true;
+                cityGroup.add(roof);
+            } else {
+                // Sacada/Topo cilíndrico
+                const topGeo = new THREE.CylinderGeometry(w / 3, w / 3, 10, 16);
+                const topMesh = new THREE.Mesh(topGeo, glassMat);
+                topMesh.position.set(centerX + dx, h + 7, centerZ + dz);
+                cityGroup.add(topMesh);
+            }
+        });
+
+        // Árvores Geométricas (Tronco = Cilindro, Folhas = Esfera/Cone)
+        const treePositions = [[-85, 0], [85, 0], [0, -85], [0, 85]];
+        const trunkGeo = new THREE.CylinderGeometry(1.5, 2, 10, 8);
+        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+        const leavesGeo = new THREE.DodecahedronGeometry(6);
+        const leavesMat = new THREE.MeshStandardMaterial({ color: 0x2e7d32, roughness: 0.6 });
+
+        treePositions.forEach(([tx, tz]) => {
+            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+            trunk.position.set(centerX + tx, 7, centerZ + tz);
+            trunk.castShadow = true;
+            cityGroup.add(trunk);
+
+            const leaves = new THREE.Mesh(leavesGeo, leavesMat);
+            leaves.position.set(centerX + tx, 15, centerZ + tz);
+            leaves.castShadow = true;
+            cityGroup.add(leaves);
+        });
+
+        // Postes de Luz Geométricos
+        const poleGeo = new THREE.CylinderGeometry(0.5, 0.5, 18, 8);
+        const poleMat = new THREE.MeshStandardMaterial({ color: 0x757575, metalness: 0.8 });
+        const lightGeo = new THREE.SphereGeometry(2, 8, 8);
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff59d });
+
+        const lampPositions = [[-85, -85], [85, 85]];
+        lampPositions.forEach(([lx, lz]) => {
+            const pole = new THREE.Mesh(poleGeo, poleMat);
+            pole.position.set(centerX + lx, 10, centerZ + lz);
+            cityGroup.add(pole);
+
+            const lightSphere = new THREE.Mesh(lightGeo, lightMat);
+            lightSphere.position.set(centerX + lx, 19, centerZ + lz);
+            cityGroup.add(lightSphere);
+        });
+    }
+
+    // Criar Blocos da Cidade em volta do cruzamento central
+    const blockCoords = [
+        [-135, -135], [135, -135], [-135, 135], [135, 135],
+        [-380, -135], [380, -135], [-380, 135], [380, 135],
+        [-135, -380], [135, -380], [-135, 380], [135, 380]
+    ];
+
+    blockCoords.forEach(([bx, bz]) => createBuildingBlock(bx, bz));
+
+    scene.add(cityGroup);
+}
+
+buildProceduralCity();
+
+// 3. VARIÁVEIS E ESTADOS
+let isGameMode = false;
+const pressedKeys = {};
+let mixer = null;
+const clock = new THREE.Clock();
+
+const animationsList = []; 
+const animationActions = {}; 
+
+let tempLoadedAnims = [];
+let previewScene, previewCamera, previewRenderer, previewMixer = null;
+let previewModelClone = null;
+let activePreviewAction = null;
+let currentLoadedRootModel = null;
+let currentAppliedTexture = null;
+
+let characterGroup = null;
+let skeletonHelper = null;
+let bonePickers = [];
+let boneMap = new Map();
+let allBones = [];
+
+// 4. PERSONAGEM PADRÃO (CUBO GEOMÉTRICO CASO NÃO CARREGUE FBX)
+function createDefaultCharacter() {
+    const group = new THREE.Group();
+    
+    // Corpo
+    const bodyGeo = new THREE.BoxGeometry(6, 10, 4);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1565c0, roughness: 0.4 });
+    const body = new THREE.Mesh(bodyGeo, bodyMat);
+    body.position.y = 8;
+    body.castShadow = true;
+    group.add(body);
+
+    // Cabeça
+    const headGeo = new THREE.SphereGeometry(3, 16, 16);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xffcc80 });
+    const head = new THREE.Mesh(headGeo, headMat);
+    head.position.y = 15;
+    head.castShadow = true;
+    group.add(head);
+
+    // Olhos para indicação de direção
+    const eyeGeo = new THREE.BoxGeometry(1, 1, 1);
+    const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+    const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeR.position.set(1.2, 15.5, 2.6);
+    const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+    eyeL.position.set(-1.2, 15.5, 2.6);
+    group.add(eyeR);
+    group.add(eyeL);
+
+    group.position.set(0, 0, 0);
+    scene.add(group);
+    characterGroup = group;
+}
+
+createDefaultCharacter();
+
+// Eventos do Teclado
+window.addEventListener('keydown', (e) => {
+    if (e.target.tagName !== 'INPUT') {
+        pressedKeys[e.code] = true;
+        if (e.code === 'Escape' && isGameMode) toggleGameMode();
+    }
+});
+window.addEventListener('keyup', (e) => {
+    if (e.target.tagName !== 'INPUT') {
+        pressedKeys[e.code] = false;
+    }
+});
+
+// Alternar Modo Jogo / Editor
+const btnToggleGame = document.getElementById('btn-toggle-game');
+btnToggleGame.addEventListener('click', toggleGameMode);
+
+function toggleGameMode() {
+    isGameMode = !isGameMode;
+    const timeline = document.getElementById('flash-timeline-container');
+    const panels = document.querySelectorAll('.floating-panel');
+    const indicator = document.getElementById('game-mode-indicator');
+
+    if (isGameMode) {
+        timeline.style.transform = 'translateY(120px)';
+        panels.forEach(p => { if (p.id !== 'panel-file') p.style.display = 'none'; });
+        indicator.style.display = 'block';
+        btnToggleGame.innerText = '⏹ Parar Jogo';
+        btnToggleGame.style.background = '#c62828';
+        bonePickers.forEach(p => p.visible = false);
+    } else {
+        timeline.style.transform = 'translateY(0)';
+        panels.forEach(p => p.style.display = 'flex');
+        indicator.style.display = 'none';
+        btnToggleGame.innerText = '🎮 Play / Testar Jogo';
+        btnToggleGame.style.background = '#2e7d32';
+        bonePickers.forEach(p => p.visible = document.getElementById('chk-pickers').checked);
+    }
+}
+
+// Redefinição de Escala do Modelo
+const btnOpenScaleModal = document.getElementById('btn-open-scale-modal');
+const scaleModalOverlay = document.getElementById('scale-modal-overlay');
+const btnScaleCancel = document.getElementById('btn-scale-cancel');
+const btnScaleApply = document.getElementById('btn-scale-apply');
+const inputScaleX = document.getElementById('input-scale-x');
+const inputScaleY = document.getElementById('input-scale-y');
+const inputScaleZ = document.getElementById('input-scale-z');
+const chkUniformScale = document.getElementById('chk-uniform-scale');
+
+btnOpenScaleModal.addEventListener('click', () => {
+    if (!characterGroup) return;
+    inputScaleX.value = characterGroup.scale.x;
+    inputScaleY.value = characterGroup.scale.y;
+    inputScaleZ.value = characterGroup.scale.z;
+    scaleModalOverlay.style.display = 'flex';
+});
+
+btnScaleCancel.addEventListener('click', () => scaleModalOverlay.style.display = 'none');
+
+inputScaleX.addEventListener('input', () => {
+    if (chkUniformScale.checked) {
+        inputScaleY.value = inputScaleX.value;
+        inputScaleZ.value = inputScaleX.value;
+    }
+});
+
+btnScaleApply.addEventListener('click', () => {
+    if (!characterGroup) return;
+    const sx = parseFloat(inputScaleX.value);
+    const sy = parseFloat(inputScaleY.value);
+    const sz = parseFloat(inputScaleZ.value);
+
+    if (!isNaN(sx) && !isNaN(sy) && !isNaN(sz) && sx > 0 && sy > 0 && sz > 0) {
+        characterGroup.scale.set(sx, sy, sz);
+        if (skeletonHelper) skeletonHelper.update();
+        scaleModalOverlay.style.display = 'none';
+    }
+});
+
+// 5. CARREGAMENTO DO MODELO 3D (FBX, GLTF, OBJ)
+document.getElementById('file-input').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const fileName = file.name;
+    const ext = fileName.split('.').pop().toLowerCase();
+    document.getElementById('model-status').innerText = `Carregando: ${fileName}`;
+    const fileURL = URL.createObjectURL(file);
+
+    if (ext === 'obj') {
+        const reader = new FileReader();
+        reader.onload = (e) => processLoadedModel(new OBJLoader().parse(e.target.result), fileName, []);
+        reader.readAsText(file);
+    } else if (ext === 'fbx') {
+        new FBXLoader().load(fileURL, (object) => {
+            processLoadedModel(object, fileName, object.animations || []);
+        }, undefined, (error) => {
+            console.error('Erro ao carregar o FBX:', error);
+            document.getElementById('model-status').innerText = `Erro ao carregar FBX!`;
+        });
+    } else if (ext === 'gltf' || ext === 'glb') {
+        new GLTFLoader().load(fileURL, (gltf) => {
+            processLoadedModel(gltf.scene, fileName, gltf.animations || []);
+        });
+    }
+});
+
+// Carregamento de Texturas
+document.getElementById('texture-input').addEventListener('change', (event) => {
+    const file = event.target.files[0];
+    if (!file || !characterGroup) return;
+    const textureURL = URL.createObjectURL(file);
+    new THREE.TextureLoader().load(textureURL, (texture) => {
+        texture.colorSpace = THREE.SRGBColorSpace;
+        currentAppliedTexture = texture;
+        characterGroup.traverse((child) => {
+            if (child.isMesh && child.material) {
+                child.material.map = texture;
+                child.material.needsUpdate = true;
+            }
+        });
+    });
+});
+
+// Carregamento de Animações FBX
+document.getElementById('anim-files-input').addEventListener('change', (event) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+    tempLoadedAnims = [];
+    let processedCount = 0;
+
+    Array.from(files).forEach((file) => {
+        const fileName = file.name;
+        const ext = fileName.split('.').pop().toLowerCase();
+        const fileURL = URL.createObjectURL(file);
+
+        if (ext === 'fbx') {
+            new FBXLoader().load(fileURL, (object) => {
+                if (object.animations) {
+                    object.animations.forEach((clip, idx) => {
+                        tempLoadedAnims.push({ clip, defaultName: `${fileName.split('.')[0]}_${clip.name || idx}` });
+                    });
+                }
+                processedCount++;
+                if (processedCount === files.length) openAnimationModal();
+            });
+        }
+    });
+});
+
+function processLoadedModel(model, name, anims) {
+    if (characterGroup) scene.remove(characterGroup);
+    if (skeletonHelper) scene.remove(skeletonHelper);
+    bonePickers.forEach(p => scene.remove(p));
+    bonePickers = [];
+    boneMap.clear();
+
+    characterGroup = model;
+    currentLoadedRootModel = model;
+
+    // Ajustar sombras para todos os sub-objetos do FBX
+    characterGroup.traverse(child => {
+        if (child.isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+        }
+    });
+
+    scene.add(characterGroup);
+    characterGroup.scale.setScalar(1);
+
+    skeletonHelper = new THREE.SkeletonHelper(characterGroup);
+    scene.add(skeletonHelper);
+
+    characterGroup.traverse((child) => {
+        if (child.isBone) {
+            const picker = new THREE.Mesh(
+                new THREE.SphereGeometry(1.2, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xffcc00, depthTest: false, transparent: true, opacity: 0.8 })
+            );
+            scene.add(picker);
+            bonePickers.push(picker);
+            boneMap.set(picker, child);
+        }
+    });
+
+    mixer = new THREE.AnimationMixer(characterGroup);
+    animationsList.length = 0;
+
+    if (anims && anims.length > 0) {
+        tempLoadedAnims = anims.map((clip, idx) => ({
+            clip: clip,
+            defaultName: `${name.split('.')[0]}_${clip.name || idx}`
+        }));
+        openAnimationModal();
+    } else {
+        updateAnimationDropdowns();
+        document.getElementById('model-status').innerText = `Modelo: ${name}`;
+    }
+}
+
+function openAnimationModal() {
+    const container = document.getElementById('anim-modal-list-container');
+    container.innerHTML = '';
+    tempLoadedAnims.forEach((animObj, index) => {
+        const row = document.createElement('div');
+        row.style.display = 'flex';
+        row.style.gap = '8px';
+        row.innerHTML = `
+            <input type="checkbox" id="chk-anim-${index}" checked>
+            <input type="text" id="name-anim-${index}" value="${animObj.defaultName}" style="flex:1;">
+        `;
+        container.appendChild(row);
+    });
+    document.getElementById('anim-modal-overlay').style.display = 'flex';
+}
+
+document.getElementById('btn-modal-cancel').addEventListener('click', () => {
+    document.getElementById('anim-modal-overlay').style.display = 'none';
+});
+
+document.getElementById('btn-modal-confirm').addEventListener('click', () => {
+    tempLoadedAnims.forEach((animObj, index) => {
+        const chk = document.getElementById(`chk-anim-${index}`);
+        const nameInput = document.getElementById(`name-anim-${index}`);
+        if (chk && chk.checked) {
+            const customName = nameInput.value.trim() || animObj.defaultName;
+            if (!animationActions[customName] && mixer) {
+                animationsList.push({ name: customName, clip: animObj.clip });
+                animationActions[customName] = mixer.clipAction(animObj.clip);
+            }
+        }
+    });
+    updateAnimationDropdowns();
+    document.getElementById('anim-modal-overlay').style.display = 'none';
+});
+
+function updateAnimationDropdowns() {
+    const selects = ['animation-list', 'anim-idle', 'anim-forward', 'anim-backward', 'anim-space', 'preview-anim-select'];
+    selects.forEach(id => {
+        const el = document.getElementById(id);
+        const currentVal = el.value;
+        el.innerHTML = id === 'animation-list' ? '' : '<option value="">(Nenhuma)</option>';
+        animationsList.forEach(item => {
+            el.add(new Option(item.name, item.name));
+        });
+        el.value = currentVal;
+    });
+}
+
+// 6. JANELA DE PREVIEW ISOLADA
+function initPreviewWindow() {
+    const container = document.getElementById('preview-canvas-container');
+    if (previewRenderer) return;
+
+    previewScene = new THREE.Scene();
+    previewScene.background = new THREE.Color(0xe2e8f0);
+
+    previewCamera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
+    previewCamera.position.set(0, 50, 100);
+
+    previewRenderer = new THREE.WebGLRenderer({ antialias: true });
+    previewRenderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(previewRenderer.domElement);
+
+    previewScene.add(new THREE.AmbientLight(0xffffff, 1.5));
+}
+
+document.getElementById('btn-open-preview').addEventListener('click', () => {
+    document.getElementById('preview-window-panel').style.display = 'flex';
+    initPreviewWindow();
+    if (currentLoadedRootModel) {
+        if (previewModelClone) previewScene.remove(previewModelClone);
+        previewModelClone = currentLoadedRootModel.clone(true);
+        previewScene.add(previewModelClone);
+        previewMixer = new THREE.AnimationMixer(previewModelClone);
+    }
+});
+
+document.getElementById('btn-preview-play').addEventListener('click', () => {
+    const selectedAnim = document.getElementById('preview-anim-select').value;
+    if (!selectedAnim || !previewMixer) return;
+    if (activePreviewAction) activePreviewAction.stop();
+    const animData = animationsList.find(a => a.name === selectedAnim);
+    if (animData) {
+        activePreviewAction = previewMixer.clipAction(animData.clip);
+        activePreviewAction.reset().play();
+    }
+});
+
+document.getElementById('btn-preview-stop').addEventListener('click', () => {
+    if (activePreviewAction) activePreviewAction.stop();
+});
+
+let activeCurrentActionName = null;
+
+function transitionToAction(newActionName, weight = 1.0, duration = 0.2) {
+    if (!mixer) return;
+    if (activeCurrentActionName === newActionName) return;
+
+    const currentAction = activeCurrentActionName ? animationActions[activeCurrentActionName] : null;
+    const nextAction = newActionName ? animationActions[newActionName] : null;
+
+    if (nextAction) {
+        nextAction.reset();
+        nextAction.setEffectiveWeight(weight);
+        if (currentAction) nextAction.crossFadeFrom(currentAction, duration, true);
+        nextAction.play();
+    } else if (currentAction) {
+        currentAction.fadeOut(duration);
+    }
+
+    activeCurrentActionName = newActionName;
+}
+
+// 7. LOOP PRINCIPAL DE RENDERIZAÇÃO E FÍSICA/MOVIMENTO
+function animate() {
+    requestAnimationFrame(animate);
+    const delta = clock.getDelta();
+    
+    if (mixer) mixer.update(delta);
+    if (previewMixer) previewMixer.update(delta);
+    if (previewRenderer && previewScene && previewCamera) {
+        previewRenderer.render(previewScene, previewCamera);
+    }
+
+    // Controle do Personagem com as SETAS DIRECIONAIS
+    if (characterGroup && isGameMode) {
+        const moveSpeed = parseFloat(document.getElementById('move-speed-slider').value) || 3.0;
+        const rotSpeed = parseFloat(document.getElementById('rot-speed-slider').value) || 0.04;
+
+        const idleAnimName = document.getElementById('anim-idle').value;
+        const forwardAnimName = document.getElementById('anim-forward').value;
+        const backwardAnimName = document.getElementById('anim-backward').value;
+        const spaceAnimName = document.getElementById('anim-space').value;
+
+        let desiredAnim = idleAnimName;
+
+        // Seta Para Cima (Mover para Frente)
+        if (pressedKeys['ArrowUp']) {
+            characterGroup.translateZ(moveSpeed);
+            if (forwardAnimName) desiredAnim = forwardAnimName;
+        } 
+        // Seta Para Baixo (Mover para Trás)
+        else if (pressedKeys['ArrowDown']) {
+            characterGroup.translateZ(-moveSpeed);
+            if (backwardAnimName) desiredAnim = backwardAnimName;
+        } 
+        // Barra de Espaço (Pulo / Ação)
+        else if (pressedKeys['Space']) {
+            if (spaceAnimName) desiredAnim = spaceAnimName;
+        }
+
+        // Seta Para Esquerda (Girar no próprio eixo)
+        if (pressedKeys['ArrowLeft']) {
+            characterGroup.rotation.y += rotSpeed;
+        } 
+        // Seta Para Direita (Girar no próprio eixo)
+        else if (pressedKeys['ArrowRight']) {
+            characterGroup.rotation.y -= rotSpeed;
+        }
+
+        transitionToAction(desiredAnim, 1.0, 0.15);
+
+        // Câmera de Terceira Pessoa Acompanhando o Personagem
+        if (document.getElementById('chk-camera-follow').checked) {
+            const relativeCameraOffset = new THREE.Vector3(0, 35, -70);
+            const cameraOffset = relativeCameraOffset.applyMatrix4(characterGroup.matrixWorld);
+            camera.position.x = THREE.MathUtils.lerp(camera.position.x, cameraOffset.x, 0.1);
+            camera.position.y = THREE.MathUtils.lerp(camera.position.y, cameraOffset.y, 0.1);
+            camera.position.z = THREE.MathUtils.lerp(camera.position.z, cameraOffset.z, 0.1);
+            orbit.target.copy(characterGroup.position).add(new THREE.Vector3(0, 15, 0));
+            orbit.update();
+        }
+    }
+
+    // Atualização das posições das Juntas Interativas
+    bonePickers.forEach(picker => {
+        const bone = boneMap.get(picker);
+        if (bone) bone.getWorldPosition(picker.position);
+    });
+
+    renderer.render(scene, camera);
+}
+
+animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / (window.innerHeight - 120);
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight - 120);
+});
+</script>
+</body>
+</html>
