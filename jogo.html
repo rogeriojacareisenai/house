@@ -244,15 +244,15 @@
             <span class="status-text">Defina diretamente a escala do modelo nos eixos X, Y e Z:</span>
             <div class="scale-input-row">
                 <label for="input-scale-x">Escala X:</label>
-                <input type="number" id="input-scale-x" value="1.0" step="0.1" min="0.01">
+                <input type="number" id="input-scale-x" value="1.0" step="0.001" min="0.0001">
             </div>
             <div class="scale-input-row">
                 <label for="input-scale-y">Escala Y:</label>
-                <input type="number" id="input-scale-y" value="1.0" step="0.1" min="0.01">
+                <input type="number" id="input-scale-y" value="1.0" step="0.001" min="0.0001">
             </div>
             <div class="scale-input-row">
                 <label for="input-scale-z">Escala Z:</label>
-                <input type="number" id="input-scale-z" value="1.0" step="0.1" min="0.01">
+                <input type="number" id="input-scale-z" value="1.0" step="0.001" min="0.0001">
             </div>
             <div class="checkbox-row" style="margin-top: 4px;">
                 <input type="checkbox" id="chk-uniform-scale" checked>
@@ -469,10 +469,11 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 // 1. CENA E ILUMINAÇÃO
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x87ceeb); // Céu azul
+scene.background = new THREE.Color(0x87ceeb);
 scene.fog = new THREE.FogExp2(0x87ceeb, 0.001);
 
 const camera = new THREE.PerspectiveCamera(60, window.innerWidth / (window.innerHeight - 120), 0.1, 5000);
@@ -488,7 +489,7 @@ document.body.appendChild(renderer.domElement);
 const orbit = new OrbitControls(camera, renderer.domElement);
 orbit.target.set(0, 10, 0);
 
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
 scene.add(ambientLight);
 
 const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -505,11 +506,10 @@ dirLight.shadow.camera.top = d;
 dirLight.shadow.camera.bottom = -d;
 scene.add(dirLight);
 
-// 2. CONSTRUÇÃO DA CIDADE COM FIGURAS GEOMÉTRICAS E ESTRADAS
+// 2. CONSTRUÇÃO DA CIDADE
 function buildProceduralCity() {
     const cityGroup = new THREE.Group();
 
-    // Terreno/Grama Principal (Plano)
     const groundGeo = new THREE.PlaneGeometry(1200, 1200);
     const groundMat = new THREE.MeshStandardMaterial({ color: 0x557a2b, roughness: 0.9 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
@@ -517,7 +517,6 @@ function buildProceduralCity() {
     ground.receiveShadow = true;
     cityGroup.add(ground);
 
-    // Mapeamento de Estradas Asfaltadas (Cruzamentos e Malha)
     const roadMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8 });
     const stripeMat = new THREE.MeshBasicMaterial({ color: 0xffeb3b });
 
@@ -530,7 +529,6 @@ function buildProceduralCity() {
         road.receiveShadow = true;
         cityGroup.add(road);
 
-        // Faixas amarelas da estrada
         const numStripes = Math.floor(length / 20);
         for (let i = 0; i < numStripes; i++) {
             const stripeGeo = new THREE.PlaneGeometry(isRotated ? 10 : 1.5, isRotated ? 1.5 : 10);
@@ -546,7 +544,6 @@ function buildProceduralCity() {
         }
     }
 
-    // Malha de Estradas Principais
     createRoad(40, 1000, 0, 0, false);
     createRoad(40, 1000, 0, 0, true);
     createRoad(30, 1000, -250, 0, false);
@@ -554,12 +551,10 @@ function buildProceduralCity() {
     createRoad(30, 1000, 0, -250, true);
     createRoad(30, 1000, 0, 250, true);
 
-    // Blocos da Cidade / Edifícios Geométricos
     const buildingColors = [0x1e88e5, 0xe53935, 0x43a047, 0xfdd835, 0x8e24aa, 0x00acc1, 0xd81b60];
     const glassMat = new THREE.MeshStandardMaterial({ color: 0x81d4fa, roughness: 0.2, metalness: 0.8 });
 
     function createBuildingBlock(centerX, centerZ) {
-        // Calçada do Bloco (Cilindro/Paralelepípedo)
         const sidewalkGeo = new THREE.BoxGeometry(180, 2, 180);
         const sidewalkMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.7 });
         const sidewalk = new THREE.Mesh(sidewalkGeo, sidewalkMat);
@@ -567,10 +562,7 @@ function buildProceduralCity() {
         sidewalk.receiveShadow = true;
         cityGroup.add(sidewalk);
 
-        // Prédios dentro do bloco
-        const positions = [
-            [-50, -50], [50, -50], [-50, 50], [50, 50]
-        ];
+        const positions = [[-50, -50], [50, -50], [-50, 50], [50, 50]];
 
         positions.forEach(([dx, dz]) => {
             const h = 40 + Math.random() * 120;
@@ -578,7 +570,6 @@ function buildProceduralCity() {
             const d = 30 + Math.random() * 20;
             const color = buildingColors[Math.floor(Math.random() * buildingColors.length)];
 
-            // Prédio Principal (Cubo/Paralelepípedo)
             const bGeo = new THREE.BoxGeometry(w, h, d);
             const bMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5 });
             const building = new THREE.Mesh(bGeo, bMat);
@@ -587,9 +578,7 @@ function buildProceduralCity() {
             building.receiveShadow = true;
             cityGroup.add(building);
 
-            // Detalhes Geométricos: Janelas (Planos) ou Telhados (Pirâmides/Cones/Esferas)
             if (Math.random() > 0.5) {
-                // Telhado em forma de Pirâmide (Cone com 4 lados)
                 const roofGeo = new THREE.ConeGeometry(Math.max(w, d) * 0.7, 20, 4);
                 const roofMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
                 const roof = new THREE.Mesh(roofGeo, roofMat);
@@ -598,7 +587,6 @@ function buildProceduralCity() {
                 roof.castShadow = true;
                 cityGroup.add(roof);
             } else {
-                // Sacada/Topo cilíndrico
                 const topGeo = new THREE.CylinderGeometry(w / 3, w / 3, 10, 16);
                 const topMesh = new THREE.Mesh(topGeo, glassMat);
                 topMesh.position.set(centerX + dx, h + 7, centerZ + dz);
@@ -606,7 +594,6 @@ function buildProceduralCity() {
             }
         });
 
-        // Árvores Geométricas (Tronco = Cilindro, Folhas = Esfera/Cone)
         const treePositions = [[-85, 0], [85, 0], [0, -85], [0, 85]];
         const trunkGeo = new THREE.CylinderGeometry(1.5, 2, 10, 8);
         const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
@@ -625,7 +612,6 @@ function buildProceduralCity() {
             cityGroup.add(leaves);
         });
 
-        // Postes de Luz Geométricos
         const poleGeo = new THREE.CylinderGeometry(0.5, 0.5, 18, 8);
         const poleMat = new THREE.MeshStandardMaterial({ color: 0x757575, metalness: 0.8 });
         const lightGeo = new THREE.SphereGeometry(2, 8, 8);
@@ -643,7 +629,6 @@ function buildProceduralCity() {
         });
     }
 
-    // Criar Blocos da Cidade em volta do cruzamento central
     const blockCoords = [
         [-135, -135], [135, -135], [-135, 135], [135, 135],
         [-380, -135], [380, -135], [-380, 135], [380, 135],
@@ -657,7 +642,7 @@ function buildProceduralCity() {
 
 buildProceduralCity();
 
-// 3. VARIÁVEIS E ESTADOS
+// 3. VARIÁVEIS DE ESTADO
 let isGameMode = false;
 const pressedKeys = {};
 let mixer = null;
@@ -677,13 +662,11 @@ let characterGroup = null;
 let skeletonHelper = null;
 let bonePickers = [];
 let boneMap = new Map();
-let allBones = [];
 
-// 4. PERSONAGEM PADRÃO (CUBO GEOMÉTRICO CASO NÃO CARREGUE FBX)
+// 4. PERSONAGEM PADRÃO
 function createDefaultCharacter() {
     const group = new THREE.Group();
     
-    // Corpo
     const bodyGeo = new THREE.BoxGeometry(6, 10, 4);
     const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1565c0, roughness: 0.4 });
     const body = new THREE.Mesh(bodyGeo, bodyMat);
@@ -691,7 +674,6 @@ function createDefaultCharacter() {
     body.castShadow = true;
     group.add(body);
 
-    // Cabeça
     const headGeo = new THREE.SphereGeometry(3, 16, 16);
     const headMat = new THREE.MeshStandardMaterial({ color: 0xffcc80 });
     const head = new THREE.Mesh(headGeo, headMat);
@@ -699,7 +681,6 @@ function createDefaultCharacter() {
     head.castShadow = true;
     group.add(head);
 
-    // Olhos para indicação de direção
     const eyeGeo = new THREE.BoxGeometry(1, 1, 1);
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
     const eyeR = new THREE.Mesh(eyeGeo, eyeMat);
@@ -716,7 +697,7 @@ function createDefaultCharacter() {
 
 createDefaultCharacter();
 
-// Eventos do Teclado
+// Teclado
 window.addEventListener('keydown', (e) => {
     if (e.target.tagName !== 'INPUT') {
         pressedKeys[e.code] = true;
@@ -729,7 +710,7 @@ window.addEventListener('keyup', (e) => {
     }
 });
 
-// Alternar Modo Jogo / Editor
+// Alternar Modo Jogo
 const btnToggleGame = document.getElementById('btn-toggle-game');
 btnToggleGame.addEventListener('click', toggleGameMode);
 
@@ -745,6 +726,7 @@ function toggleGameMode() {
         indicator.style.display = 'block';
         btnToggleGame.innerText = '⏹ Parar Jogo';
         btnToggleGame.style.background = '#c62828';
+        if (skeletonHelper) skeletonHelper.visible = false;
         bonePickers.forEach(p => p.visible = false);
     } else {
         timeline.style.transform = 'translateY(0)';
@@ -752,9 +734,18 @@ function toggleGameMode() {
         indicator.style.display = 'none';
         btnToggleGame.innerText = '🎮 Play / Testar Jogo';
         btnToggleGame.style.background = '#2e7d32';
+        if (skeletonHelper) skeletonHelper.visible = document.getElementById('chk-skeleton').checked;
         bonePickers.forEach(p => p.visible = document.getElementById('chk-pickers').checked);
     }
 }
+
+document.getElementById('chk-skeleton').addEventListener('change', (e) => {
+    if (skeletonHelper) skeletonHelper.visible = e.target.checked && !isGameMode;
+});
+
+document.getElementById('chk-pickers').addEventListener('change', (e) => {
+    bonePickers.forEach(p => p.visible = e.target.checked && !isGameMode);
+});
 
 // Redefinição de Escala do Modelo
 const btnOpenScaleModal = document.getElementById('btn-open-scale-modal');
@@ -796,7 +787,30 @@ btnScaleApply.addEventListener('click', () => {
     }
 });
 
-// 5. CARREGAMENTO DO MODELO 3D (FBX, GLTF, OBJ)
+// Ajuste automático de escala mantendo limites visíveis
+function fitModelToTargetHeight(model, targetHeight = 18) {
+    model.scale.set(1, 1, 1);
+    model.position.set(0, 0, 0);
+    model.updateMatrixWorld(true);
+
+    const box = new THREE.Box3().setFromObject(model);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    if (size.y > 0) {
+        const scaleFactor = targetHeight / size.y;
+        model.scale.setScalar(scaleFactor);
+
+        const updatedBox = new THREE.Box3().setFromObject(model);
+        model.position.y = -updatedBox.min.y;
+
+        inputScaleX.value = scaleFactor.toFixed(4);
+        inputScaleY.value = scaleFactor.toFixed(4);
+        inputScaleZ.value = scaleFactor.toFixed(4);
+    }
+}
+
+// 5. CARREGAMENTO DO MODELO 3D (COM CORREÇÕES DE FRUSTUM CULLING E MATERIAIS)
 document.getElementById('file-input').addEventListener('change', (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -813,7 +827,7 @@ document.getElementById('file-input').addEventListener('change', (event) => {
         new FBXLoader().load(fileURL, (object) => {
             processLoadedModel(object, fileName, object.animations || []);
         }, undefined, (error) => {
-            console.error('Erro ao carregar o FBX:', error);
+            console.error('Erro ao carregar FBX:', error);
             document.getElementById('model-status').innerText = `Erro ao carregar FBX!`;
         });
     } else if (ext === 'gltf' || ext === 'glb') {
@@ -832,15 +846,17 @@ document.getElementById('texture-input').addEventListener('change', (event) => {
         texture.colorSpace = THREE.SRGBColorSpace;
         currentAppliedTexture = texture;
         characterGroup.traverse((child) => {
-            if (child.isMesh && child.material) {
+            if (child.isMesh) {
                 child.material.map = texture;
+                child.material.transparent = false;
+                child.material.opacity = 1.0;
                 child.material.needsUpdate = true;
             }
         });
     });
 });
 
-// Carregamento de Animações FBX
+// Carregamento de Animações Adicionais
 document.getElementById('anim-files-input').addEventListener('change', (event) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
@@ -876,26 +892,44 @@ function processLoadedModel(model, name, anims) {
     characterGroup = model;
     currentLoadedRootModel = model;
 
-    // Ajustar sombras para todos os sub-objetos do FBX
+    // AQUI ESTÁ A CORREÇÃO CRÍTICA DE RENDERIZAÇÃO:
     characterGroup.traverse(child => {
         if (child.isMesh) {
+            child.visible = true;
+            child.frustumCulled = false; // Desativa o descarte pela câmera que sumia com o modelo
             child.castShadow = true;
             child.receiveShadow = true;
+
+            // Tratamento contra materiais invisíveis ou transparentes
+            if (child.material) {
+                if (Array.isArray(child.material)) {
+                    child.material.forEach(m => fixMaterial(m));
+                } else {
+                    fixMaterial(child.material);
+                }
+            } else {
+                child.material = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.5 });
+            }
         }
     });
 
     scene.add(characterGroup);
-    characterGroup.scale.setScalar(1);
 
+    fitModelToTargetHeight(characterGroup, 18);
+
+    // Esqueleto e Helpers
     skeletonHelper = new THREE.SkeletonHelper(characterGroup);
+    skeletonHelper.visible = document.getElementById('chk-skeleton').checked && !isGameMode;
     scene.add(skeletonHelper);
 
+    // Esferas das juntas dimensionadas dinamicamente
     characterGroup.traverse((child) => {
         if (child.isBone) {
             const picker = new THREE.Mesh(
-                new THREE.SphereGeometry(1.2, 8, 8),
+                new THREE.SphereGeometry(0.2, 8, 8),
                 new THREE.MeshBasicMaterial({ color: 0xffcc00, depthTest: false, transparent: true, opacity: 0.8 })
             );
+            picker.visible = document.getElementById('chk-pickers').checked && !isGameMode;
             scene.add(picker);
             bonePickers.push(picker);
             boneMap.set(picker, child);
@@ -915,6 +949,18 @@ function processLoadedModel(model, name, anims) {
         updateAnimationDropdowns();
         document.getElementById('model-status').innerText = `Modelo: ${name}`;
     }
+}
+
+function fixMaterial(mat) {
+    mat.side = THREE.DoubleSide;
+    mat.transparent = false;
+    mat.opacity = 1.0;
+    mat.depthWrite = true;
+    mat.depthTest = true;
+    if (mat.color && (mat.color.r === 0 && mat.color.g === 0 && mat.color.b === 0)) {
+        mat.color.setHex(0xaaaaaa);
+    }
+    mat.needsUpdate = true;
 }
 
 function openAnimationModal() {
@@ -966,7 +1012,7 @@ function updateAnimationDropdowns() {
     });
 }
 
-// 6. JANELA DE PREVIEW ISOLADA
+// 6. PREVIEW ISOLADO (USANDO SkeletonUtils)
 function initPreviewWindow() {
     const container = document.getElementById('preview-canvas-container');
     if (previewRenderer) return;
@@ -975,7 +1021,7 @@ function initPreviewWindow() {
     previewScene.background = new THREE.Color(0xe2e8f0);
 
     previewCamera = new THREE.PerspectiveCamera(50, container.clientWidth / container.clientHeight, 0.1, 1000);
-    previewCamera.position.set(0, 50, 100);
+    previewCamera.position.set(0, 20, 50);
 
     previewRenderer = new THREE.WebGLRenderer({ antialias: true });
     previewRenderer.setSize(container.clientWidth, container.clientHeight);
@@ -989,7 +1035,13 @@ document.getElementById('btn-open-preview').addEventListener('click', () => {
     initPreviewWindow();
     if (currentLoadedRootModel) {
         if (previewModelClone) previewScene.remove(previewModelClone);
-        previewModelClone = currentLoadedRootModel.clone(true);
+        
+        // Uso do SkeletonUtils para não deformar ou sumir com esqueletos clonados
+        previewModelClone = SkeletonUtils.clone(currentLoadedRootModel);
+        previewModelClone.traverse(child => {
+            if (child.isMesh) child.frustumCulled = false;
+        });
+
         previewScene.add(previewModelClone);
         previewMixer = new THREE.AnimationMixer(previewModelClone);
     }
@@ -1031,7 +1083,7 @@ function transitionToAction(newActionName, weight = 1.0, duration = 0.2) {
     activeCurrentActionName = newActionName;
 }
 
-// 7. LOOP PRINCIPAL DE RENDERIZAÇÃO E FÍSICA/MOVIMENTO
+// 7. LOOP PRINCIPAL DE ANIMAÇÃO E MOVIMENTO
 function animate() {
     requestAnimationFrame(animate);
     const delta = clock.getDelta();
@@ -1042,7 +1094,6 @@ function animate() {
         previewRenderer.render(previewScene, previewCamera);
     }
 
-    // Controle do Personagem com as SETAS DIRECIONAIS
     if (characterGroup && isGameMode) {
         const moveSpeed = parseFloat(document.getElementById('move-speed-slider').value) || 3.0;
         const rotSpeed = parseFloat(document.getElementById('rot-speed-slider').value) || 0.04;
@@ -1054,33 +1105,27 @@ function animate() {
 
         let desiredAnim = idleAnimName;
 
-        // Seta Para Cima (Mover para Frente)
         if (pressedKeys['ArrowUp']) {
             characterGroup.translateZ(moveSpeed);
             if (forwardAnimName) desiredAnim = forwardAnimName;
         } 
-        // Seta Para Baixo (Mover para Trás)
         else if (pressedKeys['ArrowDown']) {
             characterGroup.translateZ(-moveSpeed);
             if (backwardAnimName) desiredAnim = backwardAnimName;
         } 
-        // Barra de Espaço (Pulo / Ação)
         else if (pressedKeys['Space']) {
             if (spaceAnimName) desiredAnim = spaceAnimName;
         }
 
-        // Seta Para Esquerda (Girar no próprio eixo)
         if (pressedKeys['ArrowLeft']) {
             characterGroup.rotation.y += rotSpeed;
         } 
-        // Seta Para Direita (Girar no próprio eixo)
         else if (pressedKeys['ArrowRight']) {
             characterGroup.rotation.y -= rotSpeed;
         }
 
         transitionToAction(desiredAnim, 1.0, 0.15);
 
-        // Câmera de Terceira Pessoa Acompanhando o Personagem
         if (document.getElementById('chk-camera-follow').checked) {
             const relativeCameraOffset = new THREE.Vector3(0, 35, -70);
             const cameraOffset = relativeCameraOffset.applyMatrix4(characterGroup.matrixWorld);
@@ -1092,7 +1137,6 @@ function animate() {
         }
     }
 
-    // Atualização das posições das Juntas Interativas
     bonePickers.forEach(picker => {
         const bone = boneMap.get(picker);
         if (bone) bone.getWorldPosition(picker.position);
